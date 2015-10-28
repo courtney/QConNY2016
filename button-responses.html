@@ -1,0 +1,45 @@
+
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" type="text/css" href="css/button-responses.css" />
+		<link rel="stylesheet" type="text/css" href="css/wd-icons.css" />
+		<script src="js/modernizr.custom.js"></script>		
+	</head>
+	<body>
+		<div class="container" style="text-align: center;">
+			
+			<div class="content content--main clearfix">
+				<button id="sad" class="cbutton cbutton--effect-radomir">
+						<i class="wd wd-sad"></i>
+						<span class="cbutton__text">Save</span>
+					</button>
+
+					<button id="stash" class="cbutton cbutton--effect-simo cbutton cbutton--effect-simo">
+						<i class="wd wd-arrow-right-circle" style="padding-top: 4px;"></i>
+						<span class="cbutton__text">Stash</span>
+					</button>					
+				
+				
+		</div><!-- /container -->
+		
+		<script>
+			(function() {			
+				var sad = document.getElementById( 'sad' );
+				sad.addEventListener( 'click', function( ev ) {
+						sad.classList.add( 'cbutton--click' );
+						sad.querySelector('.wd-sad').className = "wd wd-smile";						
+				} );
+				var stash = document.getElementById( 'stash' );
+				stash.addEventListener( 'click', function( ev ) {
+						stash.classList.add( 'cbutton--click' );
+				} );
+
+			})();
+		</script>
+		
+	</body>
+</html>

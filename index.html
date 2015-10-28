@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Algorithms for Animation - 3 simple formulas to activate your UI</title>
+
+		<meta name="description" content="Algorithms for Animation - 3 simple formulas to activate your UI">
+		<meta name="author" content="Courtney Hemphill">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.min.css">
+
+		<link rel="stylesheet" href="css/theme/simple.css" id="theme">
+		<link rel="stylesheet" href="css/animate.css">
+		<link rel="stylesheet" href="css/webdirections.css">
+		<link rel="stylesheet" type="text/css" href="css/wd-icons.css" />
+
+		<!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css"> -->
+		<!-- <link rel="stylesheet" href="css/component.css"> -->
+		<link rel="stylesheet" href="css/spin.css">
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+		<script>
+			if( window.location.search.match( /print-pdf/gi ) ) {
+				var link = document.createElement( 'link' );
+				link.rel = 'stylesheet';
+				link.type = 'text/css';
+				link.href = 'css/print/pdf.css';
+				document.getElementsByTagName( 'head' )[0].appendChild( link );
+			}
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+					
+		
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+				<!-- TODO: 					
+					- expand on Disney's 12 principles & how animations came about
+					- expand on what interpolation is and background
+					- show simple version of algorithm and complex version (video?)
+					- add in bad examples of animation after the good patterns
+					- show some examples of CSS animation working in interfaces
+					- use Material design lite
+					- show some examples of more complex JS animations working
+					- add in humor
+					-->
+
+
+				<section class="intro" id="WebDirections2015" data-state="introduction"> 			
+					<div class="tagline"><div class="title">Algorithms for Animation</div>
+					<div style="height: 2em;">Simple formulas to 
+					  <span class="change-container">
+					    <span class="changing">activate</span> 
+					    <span class="changing">personalize</span> 
+					    <span class="changing">inform with</span> 
+					    <span class="changing">brand</span> 
+					    <span class="changing">enhance</span> 
+					  </span> UI </div>
+					</div>					
+					<div class="c5-contact">
+						<small>
+							<a href="http://www.carbonfive.com">Courtney Hemphill</a>				
+							<a href="mailto: courtney@carbonfive.com">courtney<em>@</em>carbonfive.com</a>
+							<a href="http://twitter.com/chemphill"><em class="red">@</em>chemphill</a>
+							#WebDirections2015
+						</small>						
+					</div>							
+					<aside class="notes">
+						Direction that the web is going is really the direction that software development is going. 
+						Platform independent, connected to everyone and all the things too. 
+						Happily for us, the technology is making it more and more fun to create really great tools and experiences
+						This talk is about one small slice of that - animations. 
+						one part psychology<br/>
+						one part math<br/>
+						one part process and tools
+					</aside>					
+				</section>
+
+				<section data-state="design-dev">					
+					<aside class="notes">
+						<p>Meta purpose of this talk is bridging the design and development gap</p>											
+						<p>Yesterday I saw all sorts of people walking across the bridge. Some were commuting from work across the river. We live in some places and work in others, there are places where we feel at home and then the places where we have a job, a title, a position a role.</p> 
+						<p>With creating software applications, we tend to see our work as distinctly in the code. The reality is that we might actually really enjoy the design aspect. As software engineers we have a natural requirement to design, it is just represented in code. We should also take into consider the greater experience design.</p>
+						<p>How many of you consider yourselves a designer? Developer? Hybrid?</p>
+						<p>Designing animations for software has always been a bit decoupled from the implementation.<br/>
+						translating that onto web or mobile is always a bit tricky.</p> 
+						<p>Developers can benefit by understanding basic principles behind animation design</p>
+						<p>Everyone can play a role in adding life to the interface</p> 	
+						<p>Math, and by extension physics is the foundation of our reality (design, nature, beauty abstracted away gives us math formulas)</p>
+						<p>Math, and by extension physics is the foundation of our reality (design, nature, beauty abstracted away gives us math formulas)</p>
+					</aside>			
+				</section>
+
+				<section data-state="clippy">
+					<div style="background: url('img/clippy.png') no-repeat 50% 100%; height: 570px; width: 900px;">						
+					<aside class="notes">
+						Why is animation such a hot topic now? Animations have always been a part of good Graphical user interfaces. From the annoyingly animated Clippy to the almost equally annoying genie effect. we've suffered through bad animation and mostly ignored the good because it was in service of our primary goal
+					</aside>
+				</section>
+
+				<section data-state="genie" data-background="img/genie.jpg">					
+					<aside class="notes">
+						<p>Animation in interfaces is crucial because we evolved to use movement as a cognitive aid.</p>
+					</aside>			
+				</section>
+
+				<section data-state="genie" data-background="img/elephant2.jpg">					
+					<aside class="notes">						
+     				<p>We recognize movement in our peripheral vision faster than changes in color.</p>
+     				and definitely before we read any text
+     				<p>Movement directs our attention</p>
+     				<p>Movement triggers emotional response</p>
+     				<p>New theories actually tie emotional responses to our rapid decision making (somatic-marker hypothesis)</p>
+     				<p>Something that is getting more and more attention now is the timing of animations in interfaces, which I'll go into later</p>
+     				<p>So we are hypersensitive to motion and therefore it needs to feel right</p>
+     				<!-- <p>The somatic-marker hypothesis is a neurobiological theory of how decisions are made in the face of uncertain outcome. This theory holds that such decisions are aided by emotions, in the form of bodily states, that are elicited during the deliberation of future consequences and that mark different options for behavior as being advantageous or disadvantageous. This process involves an interplay between neural systems that elicit emotional/bodily states and neural systems that map these emotional/bodily states.</p> -->
+					</aside>			
+				</section>
+				
+				<section>
+					<div style="background: url('img/chair.jpg') no-repeat 50% 100%; height: 570px; width: 900px;">						
+						<h2>Affordance & <em class="red">percieved</em> affordance</h2>
+					</div>		
+					<aside class="notes">
+						<p>What does it mean to "feel" right? how close does something uphold our view of reality?</p>						
+						<p>We will evaluate software on how close it feels to what we know.</p>
+						<p>This is all very much based in physics and in our interaction with normal object in our daily lives</p>			
+						<p>We attribute those things around us to have certain properties - this is called affordance.</p>
+						<p>Perceived affordance is an abstraction - it is skeumorphism, leather binding on a digital interface</p>
+						<p>So using visual metaphors is one way to indicate deletion but motion is another.
+						        													
+					</aside>					
+				</section>	
+
+				<section>
+					<div style="font-size: 1em;">					
+						<span class="wd wd-database"> CLI </span>
+						<span class="wd wd-chevron-right">&nbsp;</span>
+						<span class="wd wd-layers"> GUI </span>
+						<span class="wd wd-chevron-right">&nbsp;</span>
+						<span class="wd wd-pointer-up"> NUI </span>
+					</div>
+					<aside class="notes">	
+						
+						<p>hardware -> firmware -> assembler -> kernal -> OS & apps</p>
+						<p>A good abstraction will generalize that which can be made abstract; while allowing specificity where the abstraction breaks down and its successful application requires customization to each unique requirement or problem.</p>
+						<p>We expect our screens to change, to update and to inform us with that update</p>
+						<p>We abstract the changes that a machine is taking with the user interface, otherwise we would all just be back writing assembly code</p>
+						<p>The GUI was the first level of abstraction, also known as WIMPs (windows, icons, menus, pointer)</p>
+						<p>The next level is NUI or natural, using our fingers for touching, squishing, stretching</p>
+						<p>The next level is coming with AR and VR</p>	          													
+					</aside>					
+				</section>	
+							
+				
+				<section data-background="img/brain.jpg">
+					<h2 style="color: #fff; text-shadow: 2px 3px 3px #666;">Animations are cognitive aids</h2>														
+					<aside class="notes">
+						<p>In today's interfaces, the affordance of screens is change</p>					
+						<p>It is easily perceived & interpreted</br>
+        		<p>It can be discovered</p>  
+
+						<p>let's look at some examples of ways in which people are using animations to assist users</p>
+
+			
+     
+					</aside>
+				</section>
+
+<!-- abstraction/affordance -->
+				<!-- Computers, after all, are just shaky towers of nested abstractions: from the code that tells them what to do, to the interfaces that suggest to the user what’s possible to do with them. Each level of abstraction becomes an opportunity to make work more efficient, communicate more clearly, and assist understanding. Of course, abstractions also become chances to complicate what was clear, slow down what was fast, and fuck up what was perfectly fine.
+
+Choosing the proper amount of abstraction is tricky, because each user comes to what you’re making with their own amount of experience. Experience gaps are not unique to computing, but I think it matters more here than in many other situations. -->
+
+			<section>
+					<h2><em class="red">Subtle</em> Cues</h2>
+					<aside class="notes">
+						<p>Really simple animations can do a lot to set up expectations</p>
+						<p>animations can create an emotional reaction</p>
+						<p>more and more brands are creating custom animation libraries and components to use in all their digital properties - Apple built it directly into their developer platform, Facebook created a FIG (Facebook Interface Guidelines). Google sort of open sourced theirs with Material Design</p>										
+					</aside>
+				</section>
+				
+				<section data-state="buttons">		
+					<iframe src="button-responses.html" width="920" height="800" frameborder="0"></iframe>								
+					<aside class="notes">
+						<p>assistive and descriptive animation</p>
+						<p>animation that creates emotional connection to a brand</p>
+						<p>Allows the user to make a quick decision based on an emotional response to an animation</p>
+						<p>Give quick feedback</p>						
+						<p>It’s nice to feel like things are reacting to what you’re doing.</p>
+					</aside>
+				</section>	
+
+				<section>
+					<h2><em class="red">Progress</em>ive Disclosure</h2>
+					<aside class="notes">
+						<p>reduce cognitive load</p>
+						<p>only show me what is relevant now</p>										
+					</aside>
+				</section>
+
+				<section>
+					<iframe src="one-line-form.html" width="920" height="800" frameborder="0"></iframe>
+					<div class="attribution">CoDrops <br/> https://dribbble.com/ColinGarven</div>
+					<aside class="notes">
+						<p>guidance, continuity and PACE</p>
+						<p>if we had a piece of paper for every form we have filled out online we wouldn't have any forests left. bureacracy is alive and way too active</p>
+					</aside>
+				</section>
+						
+				<section data-state="progressive-disclosure">
+					<img src="img/progressive_disclosure.gif" class="fjs"/>
+					<div class="attribution">Colin Garven <br/> https://dribbble.com/ColinGarven</div>
+					<aside class="notes">
+						<p>guidance, continuity and PACE</p>
+						<p>if we had a piece of paper for every form we have filled out online we wouldn't have any forests left. bureacracy is alive and way too active</p>
+					</aside>
+				</section>																					
+
+				<section data-state="grid-demo" class="grid-demo">
+					<h2>Auto Loading</h2>
+				</section>	
+
+				<section data-state="nav-demo">
+					<h2><em class="red">Nav</em>igation</h2>
+					<aside class="notes">
+						<p>Animated transitions between screens convey logical relationships and create an understood "map" of an interface from how things enter and exit a screen.</p>						
+						<p>death of breadcrumbs</p>
+						<p>don't ask someone to read the fucking manual </p>
+					</aside>
+				</section>
+
+				<section>
+					<img src="img/ScrollingNoAnimation.gif" class="fjs"/>
+					<div class="attribution">Adrian Zumbrunnen <br/> http://www.smashingmagazine.com/2013/10/23/smart-transitions-in-user-experience-design/</div>
+					<aside class="notes">
+						<p>Traditional anchor jump or worst a page load</p>						
+					</aside>
+				</section>
+
+				<section>
+					<img src="img/ScrollingAnimated.gif" class="fjs"/>
+					<div class="attribution">Adrian Zumbrunnen <br/> http://www.smashingmagazine.com/2013/10/23/smart-transitions-in-user-experience-design/</div>
+					<aside class="notes">
+						<p>better</p>						
+						<p>no reload and we now know that where the about section is, simple but used everywhere</p>						
+					</aside>
+				</section>								
+			
+			<!-- patterns/hamburger menu -->
+			<!-- going from windows to apple -->
+			<!-- people will take the time to learn a new pattern if it is easy, fun or an extension of something familiar -->
+			<!-- normalize the patterns of an interface and make way for more nuanced abstractions. With enough time and exposure, a user can shed the padding and metaphors that become dead weight, like taking the training wheels off a bike. -->
+				<section>
+					<h2>Inter<em class="red">active</em>	</h2>
+					<aside class="notes">
+						<p>less clicking, less reading</p>
+						<p>let your users explore and discover, make it fun</p>										
+					</aside>
+				</section>
+
+				<section>
+					<img src="img/nav1.gif" class="fjs"/>
+					<div class="attribution">Sergey Valiukh<br/> https://dribbble.com/SergeyValiukh</div>
+				</section>						
+
+												
+			
+				<section>
+					<h2>Con<em class="red">text</em></h2>
+					<aside class="notes">
+						<p>always keep your users informed and knowing that something is happening</p>
+						<p>context sensitive navigation</p>
+					</aside>
+				</section>
+		
+				<section>
+					<img src="img/Twitter.gif" class="fjs"/>
+					<aside class="notes">
+						<p>flick gesture from inertial scroll</p>
+						<p>Tweetie - patent</p>
+						<p>continuity & pace</p>	
+
+					</aside>
+				</section>											
+				
+				<section>
+					<h2>How do you communicate <em class="red">animation</em> ideas?</h2>	
+					<aside class="notes">
+							Wireframes only communicate very extreme states of animations - the devil is in the details<br/>
+							<i>Wireframes and static comps leave us stuck in extreme states</i>
+							<p>Making the motion feel right requires details</p>
+						</aside>												
+				</section>	
+
+
+				<!-- 
+
+
+				<section data-state="gertie">	
+					<h2>Movement <em class="red">creates</em> life</h2>		
+					<video width="960" height="540" controls="controls">
+						<source src="img/gertie.mp4" type="video/mp4">
+					</video>			
+					
+					<div class="attribution">Gertie the Dinosaur (Winsor McCay, 1914)<br/>https://www.youtube.com/watch?v=UY40DHs9vc4</div>				
+					<aside class="notes">
+						<p>Before Mickey Mouse, before the flintstones, before the illustrious ren and stimpy</p>
+							<p> irony is that movies at the time had much jankier movements than cartoons. Tweening could make Gertie actually feel more real	than chaplan</p>
+							<p>We have an emotional response to things that move. and emotion goes a long way to helping us make decisions</p>
+					</aside>
+				</section>	
+
+				
+ -->
+				
+
+				<section>
+					<h2><em class="red">Math</em></h2>
+					<p><img src="img/math_heart.jpg" class="fjs"/></p>					
+					<aside class="notes">												
+						<p>Happily animation has its roots in some very easy math functions.</p>
+						<p>You can then take basic functions and add in all sorts of complexity</p>
+						<p>position, velocity, acceleration</p>
+					</aside>
+				</section>	
+
+				<section data-state="keyframe">
+					<img src="img/tweening.gif" class="fjs"/>					
+					<aside class="notes">
+						<p>Early animation techniques were developed by Windsor McCay</br>
+						sequences of drawings by the best designers created key animations</p>
+						<p>lackeys would draw the frames in between</p>
+						<p>Instead of a human making the natural transitions betwee key frames, we use software to be the "inbetweener", which uses physics and math.</p>
+						<p>Disney adopted this technique and came up with the "12 principles of animation design"</p>
+					</aside>	
+				</section>	
+
+				<section data-state="basic-one">
+					<h2>Moving pixels</h2>
+<pre>
+var ball = document.getElementById('ball');
+var start = 0;
+var basicAnimation = function (e) {
+	<em>start += 12;</em>	     
+	<em>basic.style.left = start + "px";</em> 
+  if (Math.abs(start) <= 800) {
+    requestAnimationFrame(basicAnimation);
+  }	
+}</pre>
+					<div class="basic-one-slide-background"><div id="basic-one"></div></div>						
+					<aside class="notes">												
+						<p>Simple addition of one pixel on another.</p>
+						<p>Doesn't give much insight into where you are at within the animation - you know position but not necessarily how much progress has been made.</p>
+						<p>Animation gets interesting when you can start to think of things in terms of percent changed</p>												
+					</aside>
+				</section>											
+
+				<section class="interpolation">
+					<h2>The basics of animation: <em class="red">interpolation</em></h2>
+					<pre style="text-align: center; margin-top: 1em;">valueAtTime = (end - start) * time / duration + start</pre>			
+					<aside class="notes">
+						<p>One simple formula describes all animation. all based on time. where you want to start, go (change), total duration and then you can always get at where you are currently in the process<p>
+						<p>To make these motions appear realistic, interpolation algorithms have been sought that approximate real life motion dynamics. </p>
+						<p>custom algorithms, motions with unique, unnatural and entertaining visual characteristics</p>						
+					</aside>
+				</section>
+
+				<section>
+					<h2>Breaking it down to [0-1]</h2>		
+					<pre style="text-align: center; margin-top: 1em;">valueAtTime = <em class="red">(end - start)</em> * <em class="blue">time / duration</em> + start</pre>	
+					<p><em class="red">Change</em> @ <em class="blue">Percent Complete</em></p>
+					<!-- <p>change = end - start</p>			
+					<p>percent complete = time/duration</p>					 -->
+					<aside class="notes">
+						<p>when making some kind of animation, we know the starting and ending positions, and want to transition between these. All of these can be converted to interpolation from 0 to 1.</p>
+
+						- thinking about things in terms of percent complete
+						<p>you are trying to map everything into a point of reference between 0 and 1</p>
+						<p>multiply any value between 0 and 1 with another value between 0 and 1, and the result is guaranteed to be between 0 and 1.</p>
+						this will then work for everything - you will have your different parameters like position, color, shape, etc but you can map them to a value between 0 to 1
+						
+						<p>So Interpolation allows you to start talking more generally and easily porting over whatever you need to put motion to into a very easy range of reference.</p>											
+					</aside>
+				</section>		
+
+				<section data-state="basic-two">
+					<h2>Timing</h2>
+					<pre>
+var time, startTime;
+var start = function () {
+  startTime = new Date().getTime();
+  run();
+}
+var run = function () {
+  time = new Date().getTime() - startTime;
+  <em>div.style.left = 900 * time / 1000 + "px";</em>
+  if(value < 1) requestAnimationFrame(run);
+}</pre>			
+				<div class="basic-one-slide-background"><div id="basic-two"></div></div>
+				<aside class="notes">
+					<p>Now we have a consistent number to work with. All animations will fall in a range from [0-1]. The percentage of completion… </p>
+
+					<p>What a property value is at any given time isn't nearly as important as how that property changed from its initial value to the final value over the lifetime of the animation. </p>
+				</aside>
+			</section>							
+		
+			<section data-state="basic-three">
+				<img src="img/percentage.png" class="fjs" style="width: 30%"/>
+				<pre>//valueAtTime = (end - start) * time / duration + start
+<em>div.style.left = 900-0 * time/1000 + 0+"px";</em></pre>			 	
+				<div class="basic-one-slide-background"><div id="basic-three"></div></div>				
+				<aside class="notes">
+					Consistent, unvarying progress from beginning to end. Too mathmatetical... need something with some variety
+				</aside>
+			</section>	
+
+
+			<section>
+				<p>
+					<blockquote>"Using a term like <em class="red">nonlinear</em> science is like referring to the bulk of zoology as the study of non-elephant animals."</blockquote>
+				</p>
+				- Stanislaw Ulam
+				<aside class="notes">
+					<p>The vast majority of mathematical equations and natural phenomena are nonlinear, with linearity being the exceptional, but important, case.</p>					
+
+					<p>With Fermi and John Pasta, Ulam studied the Fermi–Pasta–Ulam problem, which became the inspiration for the vast field of Nonlinear Science.</p>
+				</aside>
+			</section>	
+
+
+			<section>
+				<h2>Natural <em class="red">move</em>ment</h2>	
+				<p>Torque, drag, spin, friction</p>	
+				<aside class="notes">
+					<p>nothing in our world moves linearly<br/>
+					- nothing has perfectly maintained speed except in vacuums<br/>
+					- we don’t live in vacuums, we live with friction and barriers and drag<br/>
+					- we accelerate and decelerate at differing rates<br/>
+					- we experience yaw, torque, etc<br/>	
+				</p>
+				</aside>
+					
+			</section>
+			
+			<section>
+				<h2>Easing <em class="red">fun</em>ctions</h2>	
+				<img src="img/easeInCubic.png" class="fjs"/>
+				<aside class="notes">
+					Same beginning and end but with variation in the speed of execution. Start slow and move more quickly.
+					<p> basically we're adding in acceleration</p>
+				</aside>
+			</section>
+			
+			<section>
+				<h2>Easing</h2>	
+		<pre>
+			valueAtTime = (end - start) * easingfunction([0-1]) + start		
+		</pre>
+				<p>Change in <em class="red">property</em> times (some float) plus <em class="red">beginning value</em>.</p>
+				<aside class="notes">
+					Easing functions define the rate at which your property changes. All that matters is what percentage of the final property value has been reached at any given point during the animation's lifetime.
+				</aside>
+			</section>
+
+
+			<section data-state="ease-anim">
+				<h2>Power Functions - EaseIn</h2>	
+				<img src="img/easeInCubic.png" class="fjs" style="width: 30%"/>			
+				<pre class="med-code">
+var run = function () {
+  time = new Date().getTime() - startTime;
+  div.style.left = 900 * <em>Math.pow(percentChange, 3)</em> + "px";
+  if(time / duration < 1) requestAnimationFrame(run);
+}</pre>
+				<div class="basic-one-slide-background"><div id="ease-anim"></div></div>								
+				<aside class="notes">
+					Now we get to start playing around with our animations. We can make them more organic and we can tweak our values to produce exactly the effect we are after.
+					A great (and simple) starting point is the power function. 
+					You can put any power in there and see if it meets your needs.
+					So that is kinda sudden... and you don't always need to ferarri ... although who doesn't want the ferrari ...
+				</aside>					
+			</section>
+
+
+			<section data-state="ease-out-anim">
+				<h2>Power Functions - EaseOut</h2>		
+				<img src="img/eastOutCubic.png" class="fjs" style="width: 30%"/>
+				<pre class="med-code">
+var run = function () {
+  time = new Date().getTime() - startTime;  
+  div.style.left=(endX - startX)* 
+  <em>(1 - Math.pow(1 - (t / d), 3))</em> +startX+"px";
+  if(time / duration < 1) requestAnimationFrame(run);
+}</pre>
+				<div class="basic-one-slide-background"><div id="ease-out-anim"></div></div>												
+				<aside class="notes">
+					We see this a little more used on the web. the slide in. This is back to the feeling that when a person walks into your periferral vision they already have velocity and then they slow down to a stop.
+				</aside>		
+			</section>
+
+
+			<section data-state="ease-in-anim">
+				<h2>Trig! ... sine :)</h2>	
+				<img src="img/easeInSine.png" class="fjs" style="width: 30%"/>	
+				<pre class="med-code">
+var run = function () {
+  time = new Date().getTime() - startTime;
+  div.style.left=(endX - startX)* 
+  <em>Math.sin( t/d * Math.PI / 2 )</em> +startX+"px";
+  if(time / duration < 1) requestAnimationFrame(run);
+}</pre>
+				<div class="basic-one-slide-background"><div id="ease-in-anim"></div></div>															
+				<aside class="notes">
+					So what if you need a bit of nuance, it isn't a ferrari and it isn't the enter and exit stage left scenario? Trig is what starts to get you towards the more powerful physics engines. These are how you can get really good at representing natural and organic movement. 
+					It is subtle, but the devil is in the details and it is all about precise control.
+					<p>
+						Introducing time and motion changed everything for me, because what I realized was that it gave you precise control over the emotion you are trying to convey and how an audience will interpret your message. I’d often look to title sequences for inspiration because I was fascinated with how a 30 second or 3 minute sequence had the ability to set the tone for an entire film and foreshadow what was going to happen. 
+					</p>
+				</aside>
+			</section>
+
+
+			<section>
+				<h2><em class="red">Follow</em> Through</h2>	
+				<p> > 1</p>		
+				<aside class="notes">
+					<p>We can also go beyond that 0-1 range</p>
+					<p>One of the 12 Basic Principles of Animation is Follow through or elastic movement. </p>
+					<p>Follow through refers to an animation technique where things don't stop animating suddenly. They exceed their final target slightly before snapping back into place. This useful technique is something that can only be done by going beyond the 0-1 range.</p>
+				</aside>					
+			</section>
+
+
+			<section data-state="elastic-anim">
+				<h2>Elasticity</h2>	
+				<img src="img/easeOutBack.png" class="fjs" style="width: 30%"/>	
+				<pre class="med-code">
+var run = function () {
+  time = new Date().getTime() - startTime;
+  div.style.left=(endX - startX)* 
+  <em>k * k * ( ( s + 1 ) * k - s )</em> +startX+"px";
+  if(time / duration < 1) requestAnimationFrame(run);
+}</pre>
+				<div class="basic-one-slide-background"><div id="elastic-anim"></div></div>																			
+				<aside class="notes">
+					The math is getting a little more complicated now ... we're bringing in some additional factors but the basic underlying equation is still the same. you can pull most of the necessary functions from <strong>Robert Penner's easing functions</strong> or just check the source for tween.js. then you just plug and play and adjust values.
+				</aside>
+			</section>
+
+			<section data-state="bounce-anim">
+				<h2>Bounce</h2>	
+				<img src="img/easeOutBounce.png" class="fjs" style="width: 30%"/>						
+				<pre class="small-code">
+var easeFunc = function(k) {
+if ( k < ( 1 / 2.75 ) ) { 
+return 7.5625 * k * k;
+} else if ( k < ( 2 / 2.75 ) ) { 
+return 7.5625 * ( k -= ( 1.5 / 2.75 ) ) * k + 0.75;
+} else if ( k < ( 2.5 / 2.75 ) ) {	
+return 7.5625 * ( k -= ( 2.25 / 2.75 ) ) * k + 0.9375;
+} else { 
+return 7.5625 * ( k -= ( 2.625 / 2.75 ) ) * k + 0.984375; } }
+div.style.left=(endX - startX)* <em>easeFunc(t/d)</em> +startX+"px";
+				</pre>
+				<div class="basic-one-slide-background"><div id="bounce-anim"></div></div>																			
+				<aside class="notes">
+					Bounce is everywhere. You drop something, likelihood it is going to bounce a bit before it settles. so this is starting to represents our physical world. It is also starting to introduce Newtonian physics to our animations. 
+				</aside>
+			</section>
+			
+			<section data-state="friction">
+				<h2><em class="red">Physics</em> Engines</h2>	
+				<aside class="notes">
+					<p> As you get closer and closer to reality, the math starts to go from simple algebra to more complicated calculus.</p>
+					<p>Things like damping of a spring. this is where things get pretty tricky but there are </p>				
+					<p>There are many great javascript physics engines out there that take a lot of the leg work out of it for you. Diving into the source code can be fun though. </p>
+					<p>flick gesture from inertial scroll</p>
+					
+					<p>Initial velocity of your finger then the program takes that slope and degrades it until zero</p>
+				</aside>
+			</section>
+
+			<section data-state="flick-anim">
+				<aside class="notes">
+					<p>flick gesture from inertial scroll</p>
+					<p>damping of a spring. this is where things get pretty tricky but there are </p>				
+					<p>Initial velocity of your finger then the program takes that slope and degrades it until zero</p>
+				</aside>
+			</section>								
+
+			<section data-state="birds-on-wire" data-background="#e6e2df">		
+			</section>
+
+				
+
+<!-- PERFORMANCE -->
+
+				<section data-state="performance">
+					<h2>Per<em class="red">form</em>ance</h2>
+					<aside class="notes">
+						There are lots of things to consider when you are starting to introduce a lot of animations into your web sites. There isn't one easy answer on how best to approach it buy there are some basic guidelines. 
+					</aside>					
+											
+				</section>	
+				
+				<section>	
+					<ul>						
+						<li>Use <em class="red">Keyframes, Transitions & Transforms</em> with CSS</li>
+						<li>Use <em class="red">requestAnimationFrame</em> with JS</li>
+						<li>Web Animation API (WAAPI)</li>						
+					</ul>	
+					<aside class="notes">
+						<p>CSS is more performant when it comes to basic animations - things get pushed to a different thread</p>
+						<p>rAF is basically a browser API that is made to optimize concurrent animations together into a single reflow and repaint cycle</p>
+						<p>To prevent frames from getting dropped due to too many rendering requests, use requestAnimationFrame. requestAnimationFrame takes a callback that executes when the browser pushes a new frame to the screen. Essentially, the browser pulls for work at each frame, instead of us pushing work for each new touch event. This allows for concurrent animation to fit into one reflow/repaint cycle. As a result, it makes animations look much smoother because the frame rate is consistent.</p>
+					</aside>					
+				</section>	
+				
+				<section data-state="rail">
+					<h2>RAIL</h2>
+					<ul>						
+						<li>Response <em class="red">100ms</em></li>
+						<li>Animation <em class="red">16s</em></li>
+						<li>Idle  <em class="red">50ms</em></li>
+						<li>Load <em class="red">1000ms</em></li>
+					</ul>	
+					<div class="attribution">credit Paul Irish & Paul Lewis and Blink Team (<a href="http://bit.ly/blink-midnight-train" target="_blank">bit.ly/blink-midnight-train</a>)</div>
+					<aside class="notes">
+						<p>1000 - loading, 100 - finger down response, 6 - per frame, 50 - idle for cleanup</p>						
+						<p>JACOB NEILSON</p>
+						<p></p>
+					</aside>														
+				</section>
+										
+
+				<section data-state="millisecond">
+					<!-- http://web-animations.github.io/web-animations-demos/#bounce-timing-function -->
+					<aside class="notes">						
+						<p>Users have no patience to wait for your UI to load, and once it does they want to make a decision in less than .1 seconds</p>						
+					</aside>
+				</section>
+
+				<section data-state="css-js">
+					<h2>Browser Rendering</h2>
+					<ul>						
+						<li><em class="red">Avoid</em> Paint & Layout</li>
+						<li>Push things to <em class="red">compositor</em> thread</li>
+						<li>Use Transform <em class="red">&</em> Translate</li>						
+					</ul>	
+					<aside class="notes">						
+						<p>There is no one shot solution. CSS is great for the small things, but you still have to watch out that you aren't doing a lot of layout changes that might affect other elements. Check out csstriggers.com if you want the exact details</p>						
+					</aside>
+				</section>
+
+				<section>
+					<div>
+						<h2><em class="red">CSS</em></h2>
+						<pre class="small-code" style="font-size: 0.6em;">
+							.box {
+							  -webkit-transform: translate(0, 0);
+							  -webkit-transition: -webkit-transform 500ms;
+
+							  transform: translate(0, 0);
+							  transition: transform 500ms;
+							}
+
+							.box.move {
+							  -webkit-transform: translate(100px, 100px);
+							  transform: translate(100px, 100px);
+							}</pre>
+					</div>
+					<div style="text-align: center;">
+						<h2><em class="red">Javascript</em></h2>
+						<pre class="small-code" style="font-size: 0.6em;">
+						var target = document.querySelector('.box');
+						var player = target.animate([
+						  {transform: 'translate(0)'},
+						  {transform: 'translate(100px, 100px)'}
+						], 500);</pre>
+					</div>
+					<aside class="notes">						
+						<p>Users have no patience to wait for your UI to load, and once it does they want to make a decision in less than .1 seconds</p>						
+					</aside>
+				</section>		
+
+						
+
+				<!-- CSS has hardware acceleration for smooth transitions and support is built into the browser, but rules are declared in CSS and require jumping through JavaScript hoops to get values dynamically changed.
+requestAnimationFrame has good support and lets the browser optimize when to animate, but it can still hang up if there is a lot of other JavaScript running. It also often requires more math to get timing down.
+setInterval introduced many developers to animations, but it is imprecise and can lead to stuttering animations.
+jQuery.animate() introduced several other developers to animations, but often has performance issues.
+Libraries such as Velocity and GreenSock (GSAP) improve JavaScript performance and have been tested in many situations to be the best they can be. They still, however, require maintaining and loading external libraries. 
+
+The Web Animations API tries to do this. It aims to bring the power of CSS performance, add the benefits and flexibility of JavaScript (and SVG animation, which we will talk about in a future post), and leave it to the browsers to make it work well.
+-->				
+			
+			<section>
+				<h2>T<em class="red">oo</em>ls</h2>			
+				<aside class="notes">
+					So you can see that when animations start to get complicated, the math does start to get a bit more complicated as well. It is worthwhile to take the opportunity to play around with it but there are also lots of options out there to take care of it for you as well. Given the basic knowledge you have now, you can understand better what is going on under the hood.					
+				</aside>
+			</section>
+
+
+			<section>
+					<img src="img/chrome-inspect.png"/>
+					<aside class="notes">
+						<p></p>
+					</aside>														
+				</section>	
+
+				<section>
+					<div id='spinner'>
+						<span class="spin">
+							<div class="large circle one"></div>
+							<div class="large circle two"></div>
+							<div class="large circle three"></div>
+							<div class="large circle four"></div>
+							<div class="large circle five"></div>
+							<div class="large circle six"></div>
+							<div class="large circle seven"></div>
+							<div class="large circle eight"></div>						
+						</span>		
+					</div>
+				</section>
+
+
+			<section>
+					<h2><em class="red">Proto</em>typing</h2>						
+					<ul>
+						<li><a href="http://www.apple.com/mac/keynote/" target="_blank">Keynote</a></li>
+						<li><a href="https://www.flinto.com/" target="_blank">Flinto (iOS)</a></li>
+						<li><a href="http://invisionapp.com/" target="_blank">InVision</a></li>
+					</ul>	
+					
+					<ul>
+						<li><a href="https://creative.adobe.com/products/animate" target="_blank">Adobe Edge</a></li>
+						<li><a href="http://principleformac.com/" target="_blank">Principle (for mac)</a></li>
+						<li><a href="http://tumult.com/hype/" target="_blank">Hype</a></li>
+					</ul>	
+					<aside class="notes">
+						Total control, but still a handoff point to developers. 
+					</aside>								
+				</section>
+				
+				<section>
+					<ul>
+						<li><a href="https://daneden.github.io/animate.css" target="_blank">Animate.<em class="red">css</em></a></li>
+						<li><a href="http://cssanimate.com/" target="_blank"><em class="red">CSS</em>animate.com</a></li>
+						<li><a href="http://www.getmdl.io/" target="_blank">Material Design Lite</a></li>			
+					</ul>
+					<aside class="notes">
+						CSS: browser can optimize the animation. pushed to GPU.
+						<p>position, scale, rotation and opacity</p>
+						great for simple animation on interface elements that don't have a lot of interdependency in their transitions
+					</aside>														
+				</section>	
+				
+				<section>
+					<ul>
+						<li><a href="http://framerjs.com" target="_blank">Framer.<em class="red">js</em></a></li>
+						<li><a href="https://github.com/tweenjs/tween.js" target="_blank">Tween.<em class="red">js</em></a></li>
+						<li><a href="https://github.com/liabru/matter-js" target="_blank">Matter.<em class="red">js</em></a></li>
+						<li><a href="http://greensock.com/gsap" target="_blank">GSAP (Greensock)</a></li>
+					</ul>	
+					<aside class="notes">
+						Animating in JavaScript does give you a lot of control: starting, pausing, reversing, interrupting and cancelling are trivial. Some effects, like parallax scrolling, can only be achieved in JavaScript.				
+					</aside>								
+				</section>
+
+				<section>
+					<h2>Go forth and <em class="red">animate</em>!</h2>
+					<aside class="notes">
+						So I'd like to encourage you all to go out and play with animations and with these formulas. See what you can do with just an HTML page and some simple JS functions. Play around with the values and find out what types of animations appeal to you.
+					</aside>					
+				</section>
+
+
+				<section>
+					<h2>References</h2>
+					<ul>
+						<li><a href="http://easings.net/">Easing Functions</a></li>
+						<li><a href="http://www.amazon.com/Design-Everyday-Things-Donald-Norman/dp/0465067107">Don Norman - The Design of Everyday Things</a></li>						
+						<li><a href="https://birtles.github.io/areweanimatedyet/">Are We Animated Yet?</a></li>													
+						<li><a href="http://carbonfive.github.io/html5-playground/birds-on-a-line.html">Birds on a Wire</a></li>			
+						<li><a href="https://developers.google.com/web/fundamentals/design-and-ui/animations">Google Web Animation Docs</a></li>
+						<li><a href="https://github.com/liabru/matter-js" target="_blank">Matter.js</a></li>
+						<li><a href="http://csstriggers.com/">CSS Triggers</a></li>
+						
+						<!-- <li>http://uimovement.com</li>
+						<li>http://uxdesign.cc/ux-inspiration</li>
+						<li>http://ui-animations.tumblr.com/</li> -->
+						<!-- <li>https://medium.com/@sophie_paxtonUX/stop-gratuitous-ui-animation-9ece9aa9eb97</li> -->
+						<!-- https://css-tricks.com/snippets/css/keyframe-animation-syntax/ -->
+						<!-- http://inboxpixels.com/page/3/ -->
+						<!-- http://pages.citebite.com/f9f0b3e3wyaj -->
+						<!-- http://gibbon.co/c/09a78714-521d-11e3-8b64-22000ab938cc/what-screens-want-by-frank-chimero -->
+						<!-- http://matc.jomc.unc.edu/blog/psychology-behind-user-interface-design -->
+						<!-- http://thenextweb.com/dd/2015/08/24/why-emotions-are-key-to-impactful-websites/ -->
+						<!-- http://www.slideshare.net/guest45d695/jeff-johnson-psych-101-the-psychological-basis-for-ui-design-rules-522929 -->
+						<!-- https://uxmag.com/articles/the-psychologists-view-of-ux-design -->
+						<!-- http://www.mattduvall.com/ -->
+						<!-- http://bost.ocks.org/mike/algorithms/ -->
+						<!-- http://speckyboy.com/2015/09/09/css-animation/?utm_source=html5weekly&utm_medium=email -->
+						<!-- http://alistapart.com/article/designing-safer-web-animation-for-motion-sensitivity?utm_source=html5weekly&utm_medium=email -->
+					</ul>
+				</section>
+
+				<section>
+					<img src="img/c5_16_9.png" class="fjs"/>
+					<small><a href="http://www.carbonfive.com">Courtney Hemphill</a> <br/> 
+						<a href="http://twitter.com/chemphill">@chemphill</a><br/>
+						<a href="mailto: courtney@carbonfive.com">courtney@carbonfive.com</a></small>
+				</section>
+						
+			</div>
+			
+			<div id="show-grid-demo"><iframe src="grid-demo.html" width="100%" height="600" frameborder="0"></iframe></div>
+		</div>
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+		<script src="js/customEvents.js"></script>	
+		<script>
+			Reveal.initialize({
+				controls: false,
+				progress: false,
+				history: true,
+				center: true,
+				theme: Reveal.getQueryHash().theme,
+				transition: Reveal.getQueryHash().transition || 'simple', 
+				// Optional libraries used to extend on reveal.js
+				dependencies: [ { src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } } ]
+			});		
+			Reveal.configure({ keyboard: { 32: checkForSpace } });	
+		</script>
+	</body>
+</html>
