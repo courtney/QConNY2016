@@ -1,0 +1,521 @@
+<html>
+<head>
+  <title>Animation Test</title>
+  <style>
+    html, body, canvas { width: 100%; height: 100%; margin: 0; }
+    body { background-color: #fff; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+<script>
+
+var canvas = document.getElementById('c');
+var cw = canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1)
+var ch = canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1)
+var ctx = canvas.getContext('2d')
+ctx.translate(cw/2, ch/2)
+
+ctx.fillStyle = '#fff';
+ctx.fillRect(0,0,cw,ch);
+
+// transition between screens
+
+var Animator = (function(animations) {
+  var currentAnimationIndex = 0;
+  var currentAnimation = animations[currentAnimationIndex];
+  var anims = {};
+  var renderNumber = 0;
+  var animId = 0;
+  var transitionStart = null;
+  var transitionContext = null;
+  var transitionTime = 500;
+  var animCount = 400;
+
+  anims.main = [];
+  for (var i=0; i<animCount; i++)
+    anims.main.push(identify(currentAnimation.create()))
+  startTransition();
+
+  function next() {
+    if (currentAnimationIndex + 1 < animations.length) {
+      currentAnimationIndex += 1;
+      startTransition()
+    }
+  }
+
+  function previous() {
+    if (currentAnimationIndex > 0) {
+      currentAnimationIndex -= 1;
+      startTransition()
+    }
+  }
+
+  function startTransition() {
+    transitionStart = new Date();
+    currentAnimation = animations[currentAnimationIndex];
+    transitionContext = {}
+    currentAnimation.init(anims, transitionContext)
+  }
+
+  function render(ctx) {
+    ctx.clearRect(-cw/2,-ch/2,cw, ch)
+
+    if (transitionStart) {
+      var fraction = (new Date().getTime() - transitionStart.getTime()) / transitionTime;
+      currentAnimation.transition(anims, transitionContext, Math.min(1,fraction), renderNumber++)
+      if (fraction >= 1)
+        transitionStart = transitionContext = null;
+    } else {
+      currentAnimation.update(anims, renderNumber++)
+    }
+
+    for (var group in anims)
+      for (var i=0, anim; anim = anims[group][i]; i++)
+        renderAnim(ctx, anim)
+  }
+
+  function renderAnim(ctx, anim) {
+    ctx.save();
+    ctx.translate(anim.p.x, anim.p.y)
+    ctx.beginPath();
+    ctx.moveTo(anim.shape[0].x, anim.shape[0].y)
+
+    for (var i=1, v; v = anim.shape[i]; i++)
+      ctx.lineTo(v.x, v.y);
+    ctx.closePath();
+
+    if (anim.fill) {
+      ctx.fillStyle = anim.fill;
+      ctx.fill()
+    }
+    if (anim.stroke) {
+      ctx.strokeStyle = anim.stroke;
+      if (anim.line)
+        ctx.lineWidth = anim.line;
+      ctx.stroke()
+    }
+    ctx.restore();
+  }
+
+  function identify(anim) {
+    anim.id = animId++;
+    return anim;
+  }
+
+  return {render: render, next:next, previous: previous};
+})
+
+/////////////////////////////////////////////////
+// UTIL
+/////////////////////////////////////////////////
+
+function regularPoly(n, r) {
+  var path = [];
+  for (var i=0; i<n; i++)
+    path.push({x:-r*Math.sin(2*Math.PI*i/n), y:-r*Math.cos(2*Math.PI*i/n)})
+  return path;
+}
+
+function randomRect(minW, maxW, minH, maxH) {
+  var w = lerp(minW,maxW,Math.random()) / 2 * cw
+  var h = lerp(minH,maxH,Math.random()) / 2 * cw
+  return path = [ {x:-w, y:-h}, {x:-w, y:h}, {x:w, y:h}, {x:w, y:-h} ]
+}
+
+function randomCircle(minR, maxR, n) {
+  var size = (minR + (maxR-minR)*Math.pow(Math.random(),36))*ch
+  return regularPoly(n||10,size)
+}
+
+///// LINEAR INTERPOLATION FUNCTION /////
+function lerp(a,b,x) { return a+x*(b-a); }
+
+//uniform w/in circle (instead of square)
+function randomLocation() {
+  var theta = 2*Math.PI*Math.random();
+  var r = .375*ch*Math.random();
+  return {x:r*Math.cos(theta), y:r*Math.sin(theta)}
+}
+
+///gives texture (same color w/ different alpha)
+function bluish() {
+  return 'rgba(52,156,255,'+lerp(.75,1,Math.random())+')'
+}
+
+///////////////////////////////////////////////
+// transitions
+///////////////////////////////////////////////
+
+// stateless, context is passed in
+function valueTransition(prop, value, ease) {
+  var valueGen = typeof value == 'function' ? value : function() { return value }
+  ease = ease || function(x) { return x; }
+  return {
+    init: function(anim, context) {
+      context[prop+'_origin_'+anim.id] = anim[prop] || 0;
+      context[prop+'_dest_'+anim.id] = valueGen();
+    },
+    transition: function(anim, context, fraction) {
+      var eased = ease(fraction)
+      anim[prop] = lerp(context[prop+'_origin_'+anim.id], context[prop+'_dest_'+anim.id], eased);
+    }
+  }
+}
+
+// arrays are more efficient but objects are easier to code
+// Vector based, more efficient, easier to show the code
+// each animation would have had too much transition code, this consolidates
+function vectorTransition(prop, vec, ease) {
+  var transition = valueTransition(prop, vec);
+  ease = ease || function(x) { return x }
+  transition.transition = function(anim, context, fraction) {
+    var origin = context[prop+'_origin_'+anim.id];
+    var dest = context[prop+'_dest_'+anim.id];
+    var eased = ease(fraction)
+    anim[prop] = {
+      x:lerp(origin.x, dest.x, eased),
+      y:lerp(origin.y, dest.y, eased)
+    }
+  }
+  return transition;
+}
+
+// dot by dot, this morphs shapes
+function shapeTransition(prop, shape, ease) {
+  var shapeGen = typeof shape == 'function' ? shape : function() {return shape}
+  ease = ease || function(x) { return x }
+  function toPolar(p, i) { return {
+    r: Math.sqrt(p.x*p.x + p.y*p.y),
+    theta: Math.atan2(p.y, p.x) + (i>0?2*Math.PI:0)
+  } }
+  function fromPolar(p) { return {x:p.r*Math.cos(p.theta), y:p.r*Math.sin(p.theta)}}
+  return {
+    init: function(anim, context) {
+      var origin = anim[prop] || [{x:0,y:0}];
+      var dest = shapeGen();
+      while (origin.length > dest.length) dest.push(dest[0])
+      while (dest.length > origin.length) origin.push(origin[0])
+
+      context[prop+'_origin_'+anim.id] = origin.map(toPolar);
+      context[prop+'_dest_'+anim.id] = dest.map(toPolar);
+      context[prop+'_dvtx_'+anim.id] = origin.length - dest.length;
+    },
+    transition: function(anim, context, fraction) {
+      var eased = ease(fraction)
+      var origin = context[prop+'_origin_'+anim.id], dest = context[prop+'_dest_'+anim.id];
+      anim[prop] = origin.map(function(o,i) { return fromPolar({
+        r: lerp(o.r, dest[i].r, eased),
+        theta: lerp(o.theta, dest[i].theta, eased)
+      }) });
+      if (fraction == 1) {
+        var vertexDelta = context[prop+'_dvtx_'+anim.id];
+        if (vertexDelta > 0)
+          anim[prop] = anim[prop].slice(0, anim[prop].length - vertexDelta)
+      }
+    }
+  }
+}
+
+// This does init for all animations
+function makeInit(transitions,group) {
+  return function(anims, context) {
+    for (var i=0, transition; transition=transitions[i]; i++) {
+      for (var j=0, anim; anim=anims[group][j]; j++)
+        transition.init(anim, context);
+    }
+  }
+}
+
+function makeTransition(transitions,group) {
+  return function(anims, context, fraction) {
+    for (var i=0, transition; transition=transitions[i]; i++) {
+      for (var j=0, anim; anim=anims[group][j]; j++)
+        transition.transition(anim, context, fraction);
+    }
+  }
+}
+
+// some transitions manipulate the animations
+// ???
+function makeTransitionWithUpdate(transitions, group, update) {
+  var transition = makeTransition(transitions, group)
+  return function(anims, context, fraction, counter) {
+    transition(anims, context, fraction);
+    update(anims, counter)
+  }
+}
+
+/////////////////////////////////////////////////
+// Animators
+/////////////////////////////////////////////////
+
+function blueCircle() {
+  return {p:{x:0, y:0}, v:{x:0, y:0}, shape:randomCircle(.006,.009), fill:bluish()}
+}
+
+function pop(x) { return 1-Math.pow(1-x,4); }
+
+// sets everything to 0 
+// p for position, v for velocity
+// makes everything go back to 0 (center)
+
+function OriginAnimation() {
+  var transitions = [vectorTransition('p',{x:0, y:0}, pop)];
+
+  return {
+    create:blueCircle,
+    init:makeInit(transitions,'main'),
+// moves to center of screen
+    transition:makeTransition(transitions,'main'),
+//just a dot in the middle so it does nothing
+    update: function() {}
+  }
+}
+
+//////////////////////////////////////////
+
+// same as above except dots 
+function SpreadAnimation() {
+  var transitions = [vectorTransition('p',randomLocation, pop)];
+
+  return {
+    create:blueCircle,
+    init:makeInit(transitions,'main'),
+    transition:makeTransition(transitions,'main'),
+    update: function() {}
+  }
+}
+
+//////////////////////////////////////////
+
+// you start off by manipulation position
+// first step in physics is knowing where things are (zero out)
+// then you get into linear motion
+// this is now direct manipulation of motion
+
+function ClockwiseAnimation() {
+  var dTheta = .01;
+
+// transition doesn't start off immediately, starts slowly (nice effect but don't have to show)
+  function init(anims, context) {
+    anims.main.forEach(function(anim) {
+
+// take a tangent but always positive and restrict to certain angles so that you end up in the right quadrant and with the right angle
+      anim.theta = Math.atan2(anim.p.y,anim.p.x);
+      anim.r = Math.sqrt(anim.p.x*anim.p.x + anim.p.y*anim.p.y)
+    })
+  }
+
+/// this is going from rectangular to 
+  function transition(anims, context, fraction, counter) {
+    dTheta = lerp(0,.01,fraction);
+    update(anims, counter);
+  }
+
+// iterating over each dot and calling the animation    
+  function update(anims, counter) {
+    anims.main.forEach(updateAnim)
+  }
+
+// changing angle based on radius. farther out the less we change it
+// galaxy planetary system
+// simulation of gravity, w/out the orbits taking into account
+
+  function updateAnim(anim) {
+// based on radius of canvas we have (cw)
+// whenever you can you should use relative positioning, allows you to scale by context (screensize)
+// animation is percentage of screen width
+// closer to the middle of the screen the higher your theta is and makes everything in the center go faster (delta theta is proportional to the distance from the center)
+// Math.pow is an aethetic thing, gives a bit more differentiation
+// LIVE CODE?
+// really simple, just changing p.x and p.y 
+    anim.theta += .02*Math.pow(1-anim.r/cw,8) * Math.PI;
+    anim.p.x = anim.r * Math.cos(anim.theta);
+    anim.p.y = anim.r * Math.sin(anim.theta);
+  }
+
+  return {create:blueCircle, init:init, transition:transition, update: update}
+}
+
+//////////////////////////////////////////
+
+// first foray into a physics simulation
+// can do x or y direction
+// things in distance should move differently based on how close or far they are (parallax)
+// 
+
+function RainAnimation(xmin, xmax, ymin, ymax) {
+// initializes each dot with an initial velocity
+  var transitions = [vectorTransition('v',randomV), shapeTransition('shape',shape)];
+
+// gives each circle its own shape
+// puts points around a cirlce to create a polygon w/ around 10 points
+  function shape() { return randomCircle(.006, .09) }
+
+  function randomV() {
+    // choose value between min and max velocity value (px/second)
+    return {x:lerp(xmin,xmax,Math.random()),
+            y:lerp(ymin,ymax,Math.random())}
+  }
+
+  function update(anims, counter) {
+    anims.main.forEach(updateAnim)
+  }
+
+//basic equation for physics
+// take x and y and increment by velocity
+// as long as velocity is constant you just see straight line movement
+// need to think about gravity
+  function updateAnim(anim) {
+    anim.p.x += anim.v.x
+    anim.p.y += anim.v.y
+
+    anim.p.x = (anim.p.x + cw/2) % cw - cw/2
+    anim.p.y = (anim.p.y + ch/2) % ch - ch/2
+  }
+
+  return {
+    create:blueCircle,
+    init:makeInit(transitions,'main'),
+    transition:makeTransitionWithUpdate(transitions,'main', update),
+    update: update
+  }
+}
+
+//////////////////////////////////////////
+
+function GravityAnimation() {
+  var gravity = 0;
+
+  function init(anims, context) { }
+
+  function transition(anims, context, fraction, counter) {
+// gradually increasing gravity here
+// something that changes the acceleration
+// does not change position necessarily (directly) but acts directly on velocity
+
+    gravity = lerp(0,2,fraction);
+    update(anims, counter);
+  }
+
+  function update(anims, counter) {
+    anims.main.forEach(updateAnim)
+  }
+
+// first example of a simple constraint, this is when physics engines start to become handy
+
+  function updateAnim(anim) {
+// all this does is add the amount of gravity to the y velocity
+// so y velocity is always going down
+// higher your y velocity, the lower you are on the screen
+    anim.v.y += gravity
+// then you add the velocity to the position
+    anim.p.x += anim.v.x
+    anim.p.y += anim.v.y
+
+// just wrapping things on the screen using the mod function by width of screen
+// means that animation will always wrap and show up somewhere on the screen
+    anim.p.x = (anim.p.x + cw/2) % cw - cw/2
+    // if we are below bottom of screen, throw to top
+    if (anim.p.y >= .5*ch) {
+      // however far past the screen we go, add that to the top of the screen (bounce)
+      anim.p.y = ch - anim.p.y 
+      // flip velocity to bounce in same velocity back up (perfectly elastic collision)
+      // the .09 makes it not perfectly elastic
+      // friction/gravity
+      anim.v.y = -.9*Math.abs(anim.v.y)
+    }
+    // adds a bit of drag to slow down horizonal movement
+    // fluid, slightly viscous or air drag
+    // still goes in same direction but each movement is a bit slower and will head towards 0
+    anim.v.x *= .99;
+  }
+
+/// tada! Newton's laws in effect
+  return {
+    create:blueCircle,
+    init:function() {},
+    transition:transition,
+    update: update
+  }
+}
+
+//////////////////////////////////////////
+function FDGAnimation() {
+  var centerForce = .001;
+  var margin = .001 * ch;
+  var drag = .95;
+  var transitions = [shapeTransition('shape',shape)];
+
+  function shape() { return randomCircle(.02, .08, 15); }
+
+  function transition(anims, context, fraction, counter) {
+    update(anims, counter);
+  }
+
+  function update(anims, counter) {
+    anims.main.forEach(function(anim) {
+      var force = anims.main.reduce(function(f,other) {
+        if (other.id == anim.id) return f;
+        var edgeX = -anim.shape[0].x - other.shape[0].x + margin;
+        var dX = anim.p.x - other.p.x;
+
+        var edgeY = -anim.shape[0].y - other.shape[0].y + margin;
+        var dY = anim.p.y - other.p.y;
+        return {
+          x: f.x + .04 * Math.max(0, Math.abs(dX) - edgeX) / dX,
+          y: f.y/*f.y + .04 * Math.max(0, Math.abs(dY) - edgeY) / dY*/
+        };
+      }, {x:-centerForce * anim.p.x, y:-centerForce * anim.p.y})
+      // console.log(force)
+
+      anim.v.x = drag * (anim.v.x + force.x)
+      anim.v.y = drag * (anim.v.y + force.y)
+
+      anim.p.x += anim.v.x
+      anim.p.y += anim.v.y
+
+      anim.p.x = (anim.p.x + cw/2) % cw - cw/2
+      anim.p.y = (anim.p.y + ch/2) % ch - ch/2
+    })
+  }
+
+
+  return {
+    create:blueCircle,
+    init:makeInit(transitions,'main'),
+    transition:makeTransitionWithUpdate(transitions,'main', update),
+    update: update
+  }
+}
+
+
+/////////////////////////////////////////
+// Initializtion and UI
+/////////////////////////////////////////
+
+var animator = Animator([
+  OriginAnimation(),
+  SpreadAnimation(),
+  ClockwiseAnimation(),
+  RainAnimation(0,0,15,20),
+  RainAnimation(15,20,0,0),
+  GravityAnimation()
+])
+function next() {
+  animator.render(ctx);
+  requestAnimationFrame(next)
+}
+next()
+
+document.body.addEventListener('keyup', function(e) {
+  if (e.code == 'ArrowRight')
+    animator.next();
+  else if (e.code == 'ArrowLeft')
+    animator.previous();
+})
+
+</script>
+</body>
+</html>

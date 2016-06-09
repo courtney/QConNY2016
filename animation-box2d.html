@@ -1,0 +1,509 @@
+<html>
+<head>
+  <title>Animation Test</title>
+  <style>
+    html, body, canvas { width: 100%; height: 100%; margin: 0; }
+    body { background-color: #fff; }
+  </style>
+  <script src="js/Box2dWeb-2_1_a_3.js"></script>
+</head>
+<body>
+  <canvas id="c"></canvas>
+<script>
+
+var canvas = document.getElementById('c');
+var cw = canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1)
+var ch = canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1)
+var ctx = canvas.getContext('2d')
+ctx.translate(cw/2, ch/2)
+
+ctx.fillStyle = '#fff';
+ctx.fillRect(0,0,cw,ch);
+
+var Animator = (function(animations) {
+  var currentAnimationIndex = 0;
+  var currentAnimation = animations[currentAnimationIndex];
+  var anims = {};
+  var renderNumber = 0;
+  var animId = 0;
+  var transitionStart = null;
+  var transitionContext = null;
+  var transitionTime = 500;
+  var animCount = 100;
+
+  anims.main = [];
+  for (var i=0; i<animCount; i++)
+    anims.main.push(identify(currentAnimation.create()))
+  startTransition();
+
+  function next() {
+    if (currentAnimationIndex + 1 < animations.length) {
+      currentAnimationIndex += 1;
+      startTransition()
+    }
+  }
+
+  function previous() {
+    if (currentAnimationIndex > 0) {
+      currentAnimationIndex -= 1;
+      startTransition()
+    }
+  }
+
+  function startTransition() {
+    transitionStart = new Date();
+    currentAnimation = animations[currentAnimationIndex];
+    transitionContext = {}
+    currentAnimation.init(anims, transitionContext)
+  }
+
+  function render(ctx) {
+    ctx.clearRect(-cw/2,-ch/2,cw, ch)
+
+    if (transitionStart) {
+      var fraction = (new Date().getTime() - transitionStart.getTime()) / transitionTime;
+      currentAnimation.transition(anims, transitionContext, Math.min(1,fraction), renderNumber++)
+      if (fraction >= 1)
+        transitionStart = transitionContext = null;
+    } else {
+      currentAnimation.update(anims, renderNumber++)
+    }
+
+    for (var group in anims)
+      for (var i=0, anim; anim = anims[group][i]; i++)
+        renderAnim(ctx, anim)
+  }
+
+  function renderAnim(ctx, anim) {
+    ctx.save();
+    ctx.translate(anim.p.x, anim.p.y)
+    ctx.rotate(anim.theta||0)
+    ctx.beginPath();
+    ctx.moveTo(anim.shape[0].x, anim.shape[0].y)
+
+    for (var i=1, v; v = anim.shape[i]; i++)
+      ctx.lineTo(v.x, v.y);
+    ctx.closePath();
+
+    if (anim.fill) {
+      ctx.fillStyle = anim.fill;
+      ctx.fill()
+    }
+    if (anim.stroke) {
+      ctx.strokeStyle = anim.stroke;
+      if (anim.line)
+        ctx.lineWidth = anim.line;
+      ctx.stroke()
+    }
+    ctx.restore();
+  }
+
+  function identify(anim) {
+    anim.id = animId++;
+    return anim;
+  }
+
+  return {render: render, next:next, previous: previous};
+})
+
+/////////////////////////////////////////////////
+// UTIL
+/////////////////////////////////////////////////
+
+function regularPoly(n, r) {
+  var path = [];
+  for (var i=0; i<n; i++)
+    path.push({x:-r*Math.sin(2*Math.PI*i/n), y:-r*Math.cos(2*Math.PI*i/n)})
+  return path;
+}
+
+function randomRect(minW, maxW, minH, maxH) {
+  var w = lerp(minW,maxW,Math.random()) / 2 * cw
+  var h = lerp(minH,maxH,Math.random()) / 2 * cw
+  return path = [ {x:-w, y:-h}, {x:-w, y:h}, {x:w, y:h}, {x:w, y:-h} ]
+}
+
+function randomCircle(minR, maxR, n) {
+  var size = (minR + (maxR-minR)*Math.pow(Math.random(),36))*ch
+  return regularPoly(n||20,size)
+}
+
+function lerp(a,b,x) { return a+x*(b-a); }
+
+function randomLocation() {
+  var theta = 2*Math.PI*Math.random();
+  var r = .375*ch*Math.random();
+  return {x:r*Math.cos(theta), y:r*Math.sin(theta)}
+}
+
+function bluish() {
+  return 'rgba(52,156,255,'+lerp(.75,1,Math.random())+')'
+}
+
+///////////////////////////////////////////////
+// transitions
+///////////////////////////////////////////////
+
+function valueTransition(prop, value, ease) {
+  var valueGen = typeof value == 'function' ? value : function() { return value }
+  ease = ease || function(x) { return x; }
+  return {
+    init: function(anim, context) {
+      context[prop+'_origin_'+anim.id] = anim[prop] || 0;
+      context[prop+'_dest_'+anim.id] = valueGen();
+    },
+    transition: function(anim, context, fraction) {
+      var eased = ease(fraction)
+      anim[prop] = lerp(context[prop+'_origin_'+anim.id], context[prop+'_dest_'+anim.id], eased);
+    }
+  }
+}
+
+function vectorTransition(prop, vec, ease) {
+  var transition = valueTransition(prop, vec);
+  ease = ease || function(x) { return x }
+  transition.transition = function(anim, context, fraction) {
+    var origin = context[prop+'_origin_'+anim.id];
+    var dest = context[prop+'_dest_'+anim.id];
+    var eased = ease(fraction)
+    anim[prop] = {
+      x:lerp(origin.x, dest.x, eased),
+      y:lerp(origin.y, dest.y, eased)
+    }
+  }
+  return transition;
+}
+
+function colorTransition(prop, val) {
+  return {
+    init: function(anim, context) {
+      anim[prop] = val;
+    },
+    transition: function() {
+    }
+  }
+}
+function shapeTransition(prop, shape, ease) {
+  var shapeGen = typeof shape == 'function' ? shape : function() {return shape}
+  ease = ease || function(x) { return x }
+  function toPolar(p, i) { return {
+    r: Math.sqrt(p.x*p.x + p.y*p.y),
+    theta: Math.atan2(p.y, p.x) + (i>0?2*Math.PI:0)
+  } }
+  function fromPolar(p) { return {x:p.r*Math.cos(p.theta), y:p.r*Math.sin(p.theta)}}
+  return {
+    init: function(anim, context) {
+      var origin = anim[prop] || [{x:0,y:0}];
+      anim.destShape = shapeGen();
+      while (origin.length > anim.destShape.length) anim.destShape.push(dest[0])
+      while (anim.destShape.length > origin.length) origin.push(origin[0])
+
+      context[prop+'_origin_'+anim.id] = origin.map(toPolar);
+      context[prop+'_dest_'+anim.id] = anim.destShape.map(toPolar);
+      context[prop+'_dvtx_'+anim.id] = origin.length - anim.destShape.length;
+    },
+    transition: function(anim, context, fraction) {
+      var eased = ease(fraction)
+      var origin = context[prop+'_origin_'+anim.id], dest = context[prop+'_dest_'+anim.id];
+      anim[prop] = origin.map(function(o,i) { return fromPolar({
+        r: lerp(o.r, dest[i].r, eased),
+        theta: lerp(o.theta, dest[i].theta, eased)
+      }) });
+      if (fraction == 1) {
+        var vertexDelta = context[prop+'_dvtx_'+anim.id];
+        if (vertexDelta > 0)
+          anim[prop] = anim[prop].slice(0, anim[prop].length - vertexDelta)
+      }
+    }
+  }
+}
+
+function makeInit(transitions,group) {
+  return function(anims, context) {
+    for (var i=0, transition; transition=transitions[i]; i++) {
+      for (var j=0, anim; anim=anims[group][j]; j++)
+        transition.init(anim, context);
+    }
+  }
+}
+
+function makeTransition(transitions,group) {
+  return function(anims, context, fraction) {
+    for (var i=0, transition; transition=transitions[i]; i++) {
+      for (var j=0, anim; anim=anims[group][j]; j++)
+        transition.transition(anim, context, fraction);
+    }
+  }
+}
+
+function makeTransitionWithUpdate(transitions, group, update) {
+  var transition = makeTransition(transitions, group)
+  return function(anims, context, fraction, counter) {
+    transition(anims, context, fraction);
+    update(anims, counter)
+  }
+}
+
+/////////////////////////////////////////////////
+// Animators
+/////////////////////////////////////////////////
+
+function blueCircle() {
+  return {p:{x:0, y:0}, v:{x:0, y:0}, theta:0, shape:randomCircle(.006,.009), fill:bluish()}
+}
+
+function pop(x) { return 1-Math.pow(1-x,4); }
+
+function OriginAnimation() {
+  var transitions = [vectorTransition('p',{x:0, y:0}, pop)];
+
+  return {
+    create:blueCircle,
+    init:makeInit(transitions,'main'),
+    transition:makeTransition(transitions,'main'),
+    update: function() {}
+  }
+}
+
+//////////////////////////////////////////
+
+function SideAnimation() {
+  var transitions = [vectorTransition('p',{x:cw/2, y:0}, pop), shapeTransition('shape',randomCircle(.09,.09)), colorTransition('fill','#333')];
+
+  function update(anims, counter) {
+    anims.main.forEach(
+        function (anim, index) {
+          anim.p.y = ch/8 * Math.sin(counter);
+        }
+    )
+  }
+
+  return {
+    create:blueCircle,
+    init:makeInit(transitions,'main'),
+    transition:makeTransition(transitions,'main'),
+    update: update
+  }
+}
+//////////////////////////////////////////
+
+function SpreadAnimation() {
+  var transitions = [vectorTransition('p',randomLocation, pop), vectorTransition('v',{x:0,y:0}), shapeTransition('shape',randomCircle(.009,.009))];
+
+  return {
+    create:blueCircle,
+    init:makeInit(transitions,'main'),
+    transition:makeTransition(transitions,'main'),
+    update: function() {}
+  }
+}
+
+//////////////////////////////////////////
+
+function ClockwiseAnimation() {
+  var dTheta = .01;
+
+  function init(anims, context) {
+    anims.main.forEach(function(anim) {
+      anim.theta = Math.atan2(anim.p.y,anim.p.x);
+      anim.r = Math.sqrt(anim.p.x*anim.p.x + anim.p.y*anim.p.y)
+    })
+  }
+
+  function transition(anims, context, fraction, counter) {
+    dTheta = lerp(0,.01,fraction);
+    update(anims, counter);
+  }
+
+
+  function update(anims, counter) {
+    anims.main.forEach(updateAnim)
+  }
+
+  function updateAnim(anim) {
+    anim.theta += .02*Math.pow(1-anim.r/cw,8) * Math.PI;
+    anim.p.x = anim.r * Math.cos(anim.theta);
+    anim.p.y = anim.r * Math.sin(anim.theta);
+  }
+
+  return {create:blueCircle, init:init, transition:transition, update: update}
+}
+
+//////////////////////////////////////////
+
+function RainAnimation(xmin, xmax, ymin, ymax) {
+  var transitions = [vectorTransition('v',randomV), shapeTransition('shape',shape)];
+
+  function shape() { return randomCircle(.006, .009) }
+
+  function randomV() {
+    return {x:lerp(xmin,xmax,Math.random()),
+            y:lerp(ymin,ymax,Math.random())}
+  }
+
+  function update(anims, counter) {
+    anims.main.forEach(updateAnim)
+  }
+
+  function updateAnim(anim) {
+    anim.p.x += anim.v.x
+    anim.p.y += anim.v.y
+
+    anim.p.x = (anim.p.x + cw/2) % cw - cw/2
+    anim.p.y = (anim.p.y + ch/2) % ch - ch/2
+  }
+
+  return {
+    create:blueCircle,
+    init:makeInit(transitions,'main'),
+    transition:makeTransitionWithUpdate(transitions,'main', update),
+    update: update
+  }
+}
+
+//////////////////////////////////////////
+
+function GravityAnimation() {
+  var gravity = 0;
+  var transitions = [shapeTransition('shape',shape)];
+  function shape() { return randomCircle(.01, .04) }
+
+  var stdTransitions = makeTransitionWithUpdate(transitions,'main',update)
+
+  function transition(anims, context, fraction, counter) {
+    stdTransitions(anims, context, fraction, counter)
+    gravity = lerp(0,2,fraction);
+  }
+
+  function update(anims, counter) {
+    anims.main.forEach(updateAnim)
+  }
+
+  function updateAnim(anim) {
+    anim.v.y += gravity
+    anim.p.x += anim.v.x
+    anim.p.y += anim.v.y
+
+    anim.p.x = (anim.p.x + cw/2) % cw - cw/2
+    if (anim.p.y >= .4*ch) {
+      anim.p.y = .8*ch - anim.p.y
+      anim.v.y = -.4*Math.abs(anim.v.y)
+    }
+    anim.v.x *= .99;
+  }
+
+  return {
+    create:blueCircle,
+    init: makeInit(transitions,'main'),
+    transition:transition,
+    update: update
+  }
+}
+
+//////////////////////////////////////////
+
+  // Box2D
+  var b2Vec2 = Box2D.Common.Math.b2Vec2
+
+function Box2dGravityAnimation() {
+  var world;
+  var transitions = [shapeTransition('shape',shape)];
+  var SCALE = 1000;
+
+  function shape() { return randomCircle(.01, .04) }
+
+  function init(anims, context) {
+    makeInit(transitions,'main')(anims, context)
+
+    world = new Box2D.Dynamics.b2World( new b2Vec2(0, 8),  false );
+    var fixtureIndex = 0;
+
+    var bodyDef = new Box2D.Dynamics.b2BodyDef();
+    var fixtureDef = new Box2D.Dynamics.b2FixtureDef();
+
+    //create ground
+    bodyDef.type = Box2D.Dynamics.b2Body.b2_staticBody;
+
+    // positions the center of the object (not upper left!)
+    bodyDef.position.x = 0;
+    bodyDef.position.y = canvas.height / 2 / SCALE;
+
+    fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape;
+
+    // half width, half height. eg actual height here is 1 unit
+    fixtureDef.shape.SetAsBox(cw / SCALE, .1*ch / SCALE);
+    world.CreateBody(bodyDef).CreateFixture(fixtureDef);
+
+    bodyDef.type = Box2D.Dynamics.b2Body.b2_dynamicBody;
+
+    fixtureDef.density = 1.0;
+    fixtureDef.friction = 0.5;
+    fixtureDef.restitution = 0.2;
+    // fixtureDef.filter.groupIndex = -1;
+
+    anims.main.forEach(function(anim) {
+      bodyDef.position.x = anim.p.x / SCALE;
+      bodyDef.position.y = anim.p.y / SCALE;
+
+      var points = anim.destShape.reverse().map(function(point) { return new b2Vec2(.9*point.x/SCALE,.9*point.y/SCALE) })
+      fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape.AsArray( points, points.length );
+      // fixtureDef.shape = new Box2D.Collision.Shapes.b2CircleShape( .01 * ch / SCALE );
+
+      anim.body = world.CreateBody(bodyDef)
+      anim.body.id = fixtureIndex++;
+      anim.body.CreateFixture(fixtureDef);
+    })
+  }
+
+  function update(anims, counter) {
+    world.Step( 1 / 60 /* frame-rate */,  10 /* velocity iterations*/,  1 /* position iterations */);
+    anims.main.forEach(updateAnim)
+    world.ClearForces();
+  }
+
+  function updateAnim(anim) {
+    var position = anim.body.GetPosition();
+    anim.p.x = position.x * SCALE;
+    anim.p.y = position.y * SCALE;
+    anim.theta = anim.body.GetAngle()
+  }
+
+  return {
+    create:blueCircle,
+    init:init,
+    transition:makeTransitionWithUpdate(transitions,'main', update),
+    update: update
+  }
+}
+
+/////////////////////////////////////////
+// Initializtion and UI
+/////////////////////////////////////////
+
+var animator = Animator([
+  OriginAnimation(),
+  SideAnimation(),
+  SpreadAnimation(),
+  ClockwiseAnimation(),
+  RainAnimation(0,0,15,20),
+  RainAnimation(15,20,0,0),
+  GravityAnimation(),
+  SpreadAnimation(),
+  Box2dGravityAnimation()
+])
+function next() {
+  animator.render(ctx);
+  requestAnimationFrame(next)
+}
+next()
+
+document.body.addEventListener('keyup', function(e) {
+  if (e.code == 'ArrowRight')
+    animator.next();
+  else if (e.code == 'ArrowLeft')
+    animator.previous();
+})
+
+</script>
+</body>
+</html>

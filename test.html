@@ -1,58 +1,26 @@
 <html>
-<body onload="init();">
-  
-
+<head>
+  <title>Animation Test</title>
+  <style>
+    html, body, canvas { width: 100%; height: 100%; margin: 0; }
+    body { background-color: #fff; }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
 <script>
 
-  var canvas = document.getElementById('canvas');
-  var ctx = canvas.getContext('2d');
-  var raf;
+  var canvas = document.getElementById('c');
+  var cw = canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1)
+  var ch = canvas.height = canvas.offsetHeight * (window.devicePixelRatio || 1)
+  var ctx = canvas.getContext('2d')
+  ctx.translate(cw/2, ch/2)
 
-  var ball = {
-    x: 100,
-    y: 100,
-    vx: 5,
-    vy: 2,
-    radius: 25,
-    color: 'blue',
-    draw: function() {
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2, true);
-      ctx.closePath();
-      ctx.fillStyle = this.color;
-      ctx.fill();
-    }
-  };
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,cw,ch);
 
-  function draw() {
-    ctx.clearRect(0,0, canvas.width, canvas.height);    
-    ball.draw();
-    
-    ball.x += ball.vx;
-    ball.y += ball.vy;
-    ball.vy *= .99;
-    ball.vy += .25;
 
-    if (ball.y + ball.vy > canvas.height || ball.y + ball.vy < 0) {
-      ball.vy = -ball.vy;
-    }
-    if (ball.x + ball.vx > canvas.width || ball.x + ball.vx < 0) {
-      ball.vx = -ball.vx;
-    }
-    
-    raf = window.requestAnimationFrame(draw);    
-  }
 
-  canvas.addEventListener('mouseover', function(e){    
-    raf = window.requestAnimationFrame(draw);
-  });
-
-  canvas.addEventListener("mouseout",function(e){
-    window.cancelAnimationFrame(raf);
-  });
-
-  ball.draw();
-
-            </script>
+</script>
 </body>
 </html>
