@@ -113,7 +113,7 @@ var Animator = (function(animations) {
 function regularPoly(n, r) {
   var path = [];
   for (var i=0; i<n; i++)
-    path.push({x:-r*Math.sin(2*Math.PI*i/n), y:-r*Math.cos(2*Math.PI*i/n)})
+    path.push({x:-r*Math.sin(2*Math.PI*i/n), y:r*Math.cos(2*Math.PI*i/n)})
   return path;
 }
 
@@ -186,20 +186,25 @@ function colorTransition(prop, val) {
 function shapeTransition(prop, shape, ease) {
   var shapeGen = typeof shape == 'function' ? shape : function() {return shape}
   ease = ease || function(x) { return x }
-  function toPolar(p, i) { return {
-    r: Math.sqrt(p.x*p.x + p.y*p.y),
-    theta: Math.atan2(p.y, p.x) + (i>0?2*Math.PI:0)
-  } }
+  function toPolar(m, p, i) {
+    var theta = Math.atan2(p.y, p.x);
+    if (m.length && m[m.length-1].theta > theta)
+      theta += 2*Math.PI;
+    m.push({
+      r: Math.sqrt(p.x*p.x + p.y*p.y),
+      theta: theta
+    });
+    return m; }
   function fromPolar(p) { return {x:p.r*Math.cos(p.theta), y:p.r*Math.sin(p.theta)}}
   return {
     init: function(anim, context) {
       var origin = anim[prop] || [{x:0,y:0}];
       anim.destShape = shapeGen();
-      while (origin.length > anim.destShape.length) anim.destShape.push(dest[0])
+      while (origin.length > anim.destShape.length) anim.destShape.push(anim.destShape[0])
       while (anim.destShape.length > origin.length) origin.push(origin[0])
 
-      context[prop+'_origin_'+anim.id] = origin.map(toPolar);
-      context[prop+'_dest_'+anim.id] = anim.destShape.map(toPolar);
+      context[prop+'_origin_'+anim.id] = origin.reduce(toPolar,[]);
+      context[prop+'_dest_'+anim.id] = anim.destShape.reduce(toPolar,[]);
       context[prop+'_dvtx_'+anim.id] = origin.length - anim.destShape.length;
     },
     transition: function(anim, context, fraction) {
@@ -366,7 +371,7 @@ function RainAnimation(xmin, xmax, ymin, ymax) {
 function GravityAnimation() {
   var gravity = 0;
   var transitions = [shapeTransition('shape',shape)];
-  function shape() { return randomCircle(.01, .04) }
+  function shape() { return randomCircle(.006, .009) }
 
   var stdTransitions = makeTransitionWithUpdate(transitions,'main',update)
 
@@ -445,7 +450,7 @@ function Box2dGravityAnimation() {
       bodyDef.position.x = anim.p.x / SCALE;
       bodyDef.position.y = anim.p.y / SCALE;
 
-      var points = anim.destShape.reverse().map(function(point) { return new b2Vec2(.9*point.x/SCALE,.9*point.y/SCALE) })
+      var points = anim.destShape.map(function(point) { return new b2Vec2(.9*point.x/SCALE,.9*point.y/SCALE) })
       fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape.AsArray( points, points.length );
       // fixtureDef.shape = new Box2D.Collision.Shapes.b2CircleShape( .01 * ch / SCALE );
 
@@ -482,7 +487,7 @@ function Box2dGravityAnimation() {
 
 var animator = Animator([
   OriginAnimation(),
-  SideAnimation(),
+  // SideAnimation(),
   SpreadAnimation(),
   ClockwiseAnimation(),
   RainAnimation(0,0,15,20),
