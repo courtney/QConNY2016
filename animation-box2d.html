@@ -140,6 +140,84 @@ function bluish() {
   return 'rgba(52,156,255,'+lerp(.75,1,Math.random())+')'
 }
 
+function redish() {
+  return 'rgba(200,64,10,'+lerp(.5,1,Math.random())+')'
+}
+
+function greenish() {
+  return {
+    h: lerp(-.75*Math.PI,-.9*Math.PI,Math.random()),
+    s: lerp(.4,.5,Math.random()),
+    v: lerp(.5,.8,Math.random()),
+    a: lerp(.5,1,Math.random())}
+}
+
+function rainbow() {
+  return {h: lerp(-Math.PI,Math.PI,Math.random()), s: .2, v: .75, a: lerp(.75,1,Math.random())}
+}
+
+
+function rgbaToHSVA(color) {
+  var yiq = {
+    y: color.r*0.299 + color.g*0.587 + color.b*0.114,
+    i: color.r*0.596 + color.g*-0.274 + color.b*-0.321,
+    q: color.r*0.211 + color.g*-0.523 + color.b*0.311
+  }
+
+  return {
+    h: Math.atan2(yiq.i, yiq.q),
+    s: Math.sqrt(yiq.i*yiq.i + yiq.q*yiq.q),
+    v: yiq.y,
+    a: color.a
+  }
+}
+
+function hsvaToRGBA(color) {
+  var yiq = {
+    y: color.v,
+    i: color.s * Math.sin(color.h),
+    q: color.s * Math.cos(color.h)
+  }
+
+  return {
+    r: yiq.y*1 + yiq.i*0.956 + yiq.q*0.621,
+    g: yiq.y*1 + yiq.i*-0.272 +	yiq.q*-0.647,
+    b: yiq.y*1 + yiq.i*-1.107 + yiq.q*1.705,
+    a: color.a
+  }
+}
+
+function shortenAngles(hsv1,hsv2) {
+  hsv1.h = (hsv1.h % (2*Math.PI)) + (hsv1.h < 0 ? 2*Math.PI : 0)
+  hsv2.h = (hsv2.h % (2*Math.PI)) + (hsv2.h < 0 ? 2*Math.PI : 0)
+  if (Math.abs(hsv1.h - hsv2.h) <= Math.PI) return;
+
+  if (hsv1.h > Math.PI) hsv1.h -= 2*Math.PI
+  else hsv2.h -= 2*Math.PI
+}
+
+function rgbaToCSS(color) {
+  return 'rgba(' + Math.round(color.r*255) + ',' + Math.round(color.g*255) + ',' + Math.round(color.b*255) + ',' + color.a.toFixed(3) + ')'
+}
+
+function cssToHSVA(css) {
+  if (typeof css != 'string') return css;
+  var m;
+  if (m = css.match(/^\#(\w\w)(\w\w)(\w\w)$/))
+    return rgbaToHSVA({r:parseFloat(m[1],16)/255, g:parseFloat(m[2],16)/255, b:parseFloat(m[3],16)/255, a:1})
+  else if (m = css.match(/^\#(\w)(\w)(\w)$/))
+    return rgbaToHSVA({r:parseInt(m[1]+m[1],16)/255, g:parseInt(m[2]+m[2],16)/255, b:parseInt(m[3]+m[3],16)/255, a:1})
+  else if (m = css.match(/^rgba\((.*),(.*),(.*),(.*)\)$/i))
+    return rgbaToHSVA({r:parseInt(m[1])/255, g:parseInt(m[2])/255, b:parseInt(m[3])/255, a:parseFloat(m[4])})
+  else if (m = css.match(/^rgb\((.*),(.*),(.*)\)$/i))
+    return rgbaToHSVA({r:parseFloat(m[1])/255, g:parseFloat(m[2])/255, b:parseFloat(m[3])/255, a:1})
+  else if (m = css.match(/^hsl\((.*),(.*),(.*)\)$/i))
+    return {h:parseFloat(m[1])*Math.PI/180, s:parseFloat(m[2])/100, v:parseFloat(m[3])/100, a:1}
+  else if (m = css.match(/^hsla\((.*),(.*),(.*),(.*)\)$/i))
+    return {h:parseFloat(m[1])*Math.PI/180, s:parseFloat(m[2])/100, v:parseFloat(m[3])/100, a:parseFloat(m[4])}
+  else return {h:1,s:1,v:0,a:1}
+}
+
 ///////////////////////////////////////////////
 // transitions
 ///////////////////////////////////////////////
@@ -174,12 +252,27 @@ function vectorTransition(prop, vec, ease) {
   return transition;
 }
 
-function colorTransition(prop, val) {
+function colorTransition(prop, value, ease) {
+  var valueGen = typeof value == 'function' ? value : function() { return value }
+  ease = ease || function(x) { return x; }
   return {
     init: function(anim, context) {
-      anim[prop] = val;
+      var origin = cssToHSVA(anim[prop])
+      var dest = cssToHSVA(valueGen())
+      shortenAngles(origin,dest)
+      context[prop+'_origin_'+anim.id] = origin;
+      context[prop+'_dest_'+anim.id] = dest;
     },
-    transition: function() {
+    transition: function(anim, context, fraction) {
+      var eased = ease(fraction)
+      var origin = context[prop+'_origin_'+anim.id]
+      var dest = context[prop+'_dest_'+anim.id]
+      anim[prop] = rgbaToCSS(hsvaToRGBA({
+        h: lerp(origin.h, dest.h, eased),
+        s: lerp(origin.s, dest.s, eased),
+        v: lerp(origin.v, dest.v, eased),
+        a: lerp(origin.a, dest.a, eased)
+      }))
     }
   }
 }
@@ -260,7 +353,7 @@ function blueCircle() {
 function pop(x) { return 1-Math.pow(1-x,4); }
 
 function OriginAnimation() {
-  var transitions = [vectorTransition('p',{x:0, y:0}, pop)];
+  var transitions = [vectorTransition('p',{x:0, y:0}, pop), colorTransition('fill', bluish)];
 
   return {
     create:blueCircle,
@@ -278,7 +371,7 @@ function SideAnimation() {
   function update(anims, counter) {
     anims.main.forEach(
         function (anim, index) {
-          anim.p.y = ch/8 * Math.sin(counter);
+          anim.p.y = ch/8 * Math.sin(.1*counter);
         }
     )
   }
@@ -293,7 +386,12 @@ function SideAnimation() {
 //////////////////////////////////////////
 
 function SpreadAnimation() {
-  var transitions = [vectorTransition('p',randomLocation, pop), vectorTransition('v',{x:0,y:0}), shapeTransition('shape',randomCircle(.009,.009))];
+  var transitions = [
+    vectorTransition('p',randomLocation,pop),
+    vectorTransition('v',{x:0,y:0}),
+    shapeTransition('shape',randomCircle(.009,.009)),
+    colorTransition('fill', greenish)
+  ];
 
   return {
     create:blueCircle,
@@ -306,9 +404,13 @@ function SpreadAnimation() {
 //////////////////////////////////////////
 
 function ClockwiseAnimation() {
+  var transitions = [colorTransition('fill', bluish)];
+  var stdInit = makeInit(transitions,'main')
+  var stdTransition = makeTransition(transitions,'main')
   var dTheta = .01;
 
   function init(anims, context) {
+    stdInit(anims,context)
     anims.main.forEach(function(anim) {
       anim.theta = Math.atan2(anim.p.y,anim.p.x);
       anim.r = Math.sqrt(anim.p.x*anim.p.x + anim.p.y*anim.p.y)
@@ -316,6 +418,7 @@ function ClockwiseAnimation() {
   }
 
   function transition(anims, context, fraction, counter) {
+    stdTransition(anims,context,fraction,counter)
     dTheta = lerp(0,.01,fraction);
     update(anims, counter);
   }
@@ -487,7 +590,7 @@ function Box2dGravityAnimation() {
 
 var animator = Animator([
   OriginAnimation(),
-  // SideAnimation(),
+  SideAnimation(),
   SpreadAnimation(),
   ClockwiseAnimation(),
   RainAnimation(0,0,15,20),
