@@ -29,11 +29,8 @@ var Animator = (function(animations) {
   var transitionStart = null;
   var transitionContext = null;
   var transitionTime = 500;
-  var animCount = 100;
+  var lastCreate;
 
-  anims.main = [];
-  for (var i=0; i<animCount; i++)
-    anims.main.push(identify(currentAnimation.create()))
   startTransition();
 
   function next() {
@@ -53,8 +50,30 @@ var Animator = (function(animations) {
   function startTransition() {
     transitionStart = new Date();
     currentAnimation = animations[currentAnimationIndex];
+    lastCreate = currentAnimation.create || lastCreate;
+    if (currentAnimation.spec)
+      reallocateAnims(currentAnimation.spec, lastCreate);
     transitionContext = {}
     currentAnimation.init(anims, transitionContext)
+  }
+
+  function reallocateAnims(spec, create) {
+    var all = [], total = 0;
+    for (var group in spec)
+      total += spec[group]
+
+    for (var group in anims)
+      if (group != '_exiting')
+        all = all.concat(anims[group])
+
+    while (all.length < total)
+      all.push(create());
+
+    shuffle(all)
+    anims = {}
+    for (var group in spec)
+      anims[group] = all.splice(0,spec[group])
+    anims['_exiting'] = all
   }
 
   function render(ctx) {
@@ -110,6 +129,13 @@ var Animator = (function(animations) {
 // UTIL
 /////////////////////////////////////////////////
 
+function swap(a,i,j) { var tmp = a[j]; a[j] = a[i]; a[i] = tmp; }
+
+function shuffle(a) {
+  for (var i=0; i<a.length; i++)
+    swap(a, i, Math.floor(lerp(i,a.length,Math.random())))
+}
+
 function regularPoly(n, r) {
   var path = [];
   for (var i=0; i<n; i++)
@@ -136,20 +162,24 @@ function randomLocation() {
   return {x:r*Math.cos(theta), y:r*Math.sin(theta)}
 }
 
+function randomColor(minH, maxH, minS, maxS, minV, maxV, minA, maxA) {
+  return {
+    h: lerp(minH, maxH, Math.random()),
+    s: lerp(minS, maxS, Math.random()),
+    v: lerp(minV, maxV, Math.random()),
+    a: lerp(minA, maxA, Math.random())}
+}
+
 function bluish() {
   return 'rgba(52,156,255,'+lerp(.75,1,Math.random())+')'
 }
 
 function redish() {
-  return 'rgba(200,64,10,'+lerp(.5,1,Math.random())+')'
+  return randomColor(.43*Math.PI,.3*Math.PI, .4,.8, .5,.8, .5,1)
 }
 
 function greenish() {
-  return {
-    h: lerp(-.75*Math.PI,-.9*Math.PI,Math.random()),
-    s: lerp(.4,.5,Math.random()),
-    v: lerp(.5,.8,Math.random()),
-    a: lerp(.5,1,Math.random())}
+  return randomColor(-.75*Math.PI,-.9*Math.PI, .4,.5, .5,.8, .5,1)
 }
 
 function rainbow() {
@@ -227,12 +257,12 @@ function valueTransition(prop, value, ease) {
   ease = ease || function(x) { return x; }
   return {
     init: function(anim, context) {
-      context[prop+'_origin_'+anim.id] = anim[prop] || 0;
-      context[prop+'_dest_'+anim.id] = valueGen();
+      anim['_origin_'+prop] = anim[prop] || 0;
+      anim['_dest_'+prop] = valueGen();
     },
     transition: function(anim, context, fraction) {
       var eased = ease(fraction)
-      anim[prop] = lerp(context[prop+'_origin_'+anim.id], context[prop+'_dest_'+anim.id], eased);
+      anim[prop] = lerp(anim['_origin_'+prop], anim['_dest_'+prop], eased);
     }
   }
 }
@@ -241,8 +271,8 @@ function vectorTransition(prop, vec, ease) {
   var transition = valueTransition(prop, vec);
   ease = ease || function(x) { return x }
   transition.transition = function(anim, context, fraction) {
-    var origin = context[prop+'_origin_'+anim.id];
-    var dest = context[prop+'_dest_'+anim.id];
+    var origin = anim['_origin_'+prop];
+    var dest = anim['_dest_'+prop];
     var eased = ease(fraction)
     anim[prop] = {
       x:lerp(origin.x, dest.x, eased),
@@ -260,13 +290,13 @@ function colorTransition(prop, value, ease) {
       var origin = cssToHSVA(anim[prop])
       var dest = cssToHSVA(valueGen())
       shortenAngles(origin,dest)
-      context[prop+'_origin_'+anim.id] = origin;
-      context[prop+'_dest_'+anim.id] = dest;
+      anim['_origin_'+prop] = origin;
+      anim['_dest_'+prop] = dest;
     },
     transition: function(anim, context, fraction) {
       var eased = ease(fraction)
-      var origin = context[prop+'_origin_'+anim.id]
-      var dest = context[prop+'_dest_'+anim.id]
+      var origin = anim['_origin_'+prop]
+      var dest = anim['_dest_'+prop]
       anim[prop] = rgbaToCSS(hsvaToRGBA({
         h: lerp(origin.h, dest.h, eased),
         s: lerp(origin.s, dest.s, eased),
@@ -296,19 +326,19 @@ function shapeTransition(prop, shape, ease) {
       while (origin.length > anim.destShape.length) anim.destShape.push(anim.destShape[0])
       while (anim.destShape.length > origin.length) origin.push(origin[0])
 
-      context[prop+'_origin_'+anim.id] = origin.reduce(toPolar,[]);
-      context[prop+'_dest_'+anim.id] = anim.destShape.reduce(toPolar,[]);
-      context[prop+'_dvtx_'+anim.id] = origin.length - anim.destShape.length;
+      anim['_origin_'+prop] = origin.reduce(toPolar,[]);
+      anim['_dest_'+prop] = anim.destShape.reduce(toPolar,[]);
+      anim['_dvtx_'+prop] = origin.length - anim.destShape.length;
     },
     transition: function(anim, context, fraction) {
       var eased = ease(fraction)
-      var origin = context[prop+'_origin_'+anim.id], dest = context[prop+'_dest_'+anim.id];
+      var origin = anim['_origin_'+prop], dest = anim['_dest_'+prop];
       anim[prop] = origin.map(function(o,i) { return fromPolar({
         r: lerp(o.r, dest[i].r, eased),
         theta: lerp(o.theta, dest[i].theta, eased)
       }) });
       if (fraction == 1) {
-        var vertexDelta = context[prop+'_dvtx_'+anim.id];
+        var vertexDelta = anim['_dvtx_',prop];
         if (vertexDelta > 0)
           anim[prop] = anim[prop].slice(0, anim[prop].length - vertexDelta)
       }
@@ -316,26 +346,30 @@ function shapeTransition(prop, shape, ease) {
   }
 }
 
-function makeInit(transitions,group) {
+function makeInit(transitions) {
   return function(anims, context) {
-    for (var i=0, transition; transition=transitions[i]; i++) {
-      for (var j=0, anim; anim=anims[group][j]; j++)
-        transition.init(anim, context);
+    for (var group in transitions) {
+      for (var i=0, transition; transition=transitions[group][i]; i++) {
+        for (var j=0, anim; anim=anims[group][j]; j++)
+          transition.init(anim, context);
+      }
     }
   }
 }
 
-function makeTransition(transitions,group) {
+function makeTransition(transitions) {
   return function(anims, context, fraction) {
-    for (var i=0, transition; transition=transitions[i]; i++) {
-      for (var j=0, anim; anim=anims[group][j]; j++)
-        transition.transition(anim, context, fraction);
+    for (var group in transitions) {
+      for (var i=0, transition; transition=transitions[group][i]; i++) {
+        for (var j=0, anim; anim=anims[group][j]; j++)
+          transition.transition(anim, context, fraction);
+      }
     }
   }
 }
 
-function makeTransitionWithUpdate(transitions, group, update) {
-  var transition = makeTransition(transitions, group)
+function makeTransitionWithUpdate(transitions, update) {
+  var transition = makeTransition(transitions)
   return function(anims, context, fraction, counter) {
     transition(anims, context, fraction);
     update(anims, counter)
@@ -353,12 +387,19 @@ function blueCircle() {
 function pop(x) { return 1-Math.pow(1-x,4); }
 
 function OriginAnimation() {
-  var transitions = [vectorTransition('p',{x:0, y:0}, pop), colorTransition('fill', bluish)];
+  var transitions = {
+    main: [
+      vectorTransition('p',{x:0, y:0}, pop),
+      shapeTransition('shape',randomCircle(.02,.02), pop),
+      colorTransition('fill', bluish)],
+    '_exiting': [vectorTransition('p',{x:0, y:0}, pop), colorTransition('fill','rgba(0,0,0,0)', pop)]
+  }
 
   return {
+    spec: {main:1},
     create:blueCircle,
-    init:makeInit(transitions,'main'),
-    transition:makeTransition(transitions,'main'),
+    init:makeInit(transitions),
+    transition:makeTransition(transitions),
     update: function() {}
   }
 }
@@ -366,7 +407,12 @@ function OriginAnimation() {
 //////////////////////////////////////////
 
 function SideAnimation() {
-  var transitions = [vectorTransition('p',{x:cw/2, y:0}, pop), shapeTransition('shape',randomCircle(.09,.09)), colorTransition('fill','#333')];
+  var transitions = {
+    main: [
+      vectorTransition('p',{x:cw/2, y:0}, pop),
+      shapeTransition('shape',randomCircle(.09,.09)),
+      colorTransition('fill','#333')]
+  }
 
   function update(anims, counter) {
     anims.main.forEach(
@@ -378,25 +424,26 @@ function SideAnimation() {
 
   return {
     create:blueCircle,
-    init:makeInit(transitions,'main'),
-    transition:makeTransition(transitions,'main'),
+    init:makeInit(transitions),
+    transition:makeTransition(transitions),
     update: update
   }
 }
 //////////////////////////////////////////
 
 function SpreadAnimation() {
-  var transitions = [
+  var transitions = {main:[
     vectorTransition('p',randomLocation,pop),
     vectorTransition('v',{x:0,y:0}),
-    shapeTransition('shape',randomCircle(.009,.009)),
+    shapeTransition('shape',function() { return randomCircle(.006,.009) }, pop),
     colorTransition('fill', greenish)
-  ];
+  ]}
 
   return {
+    spec: {main:400},
     create:blueCircle,
-    init:makeInit(transitions,'main'),
-    transition:makeTransition(transitions,'main'),
+    init:makeInit(transitions),
+    transition:makeTransition(transitions),
     update: function() {}
   }
 }
@@ -404,9 +451,9 @@ function SpreadAnimation() {
 //////////////////////////////////////////
 
 function ClockwiseAnimation() {
-  var transitions = [colorTransition('fill', bluish)];
-  var stdInit = makeInit(transitions,'main')
-  var stdTransition = makeTransition(transitions,'main')
+  var transitions = {main:[colorTransition('fill', function() { return redish() })]};
+  var stdInit = makeInit(transitions)
+  var stdTransition = makeTransition(transitions)
   var dTheta = .01;
 
   function init(anims, context) {
@@ -440,7 +487,7 @@ function ClockwiseAnimation() {
 //////////////////////////////////////////
 
 function RainAnimation(xmin, xmax, ymin, ymax) {
-  var transitions = [vectorTransition('v',randomV), shapeTransition('shape',shape)];
+  var transitions = {main:[vectorTransition('v',randomV), shapeTransition('shape',shape)]};
 
   function shape() { return randomCircle(.006, .009) }
 
@@ -463,8 +510,8 @@ function RainAnimation(xmin, xmax, ymin, ymax) {
 
   return {
     create:blueCircle,
-    init:makeInit(transitions,'main'),
-    transition:makeTransitionWithUpdate(transitions,'main', update),
+    init:makeInit(transitions),
+    transition:makeTransitionWithUpdate(transitions, update),
     update: update
   }
 }
@@ -473,10 +520,10 @@ function RainAnimation(xmin, xmax, ymin, ymax) {
 
 function GravityAnimation() {
   var gravity = 0;
-  var transitions = [shapeTransition('shape',shape)];
+  var transitions = {main:[shapeTransition('shape',shape)]};
   function shape() { return randomCircle(.006, .009) }
 
-  var stdTransitions = makeTransitionWithUpdate(transitions,'main',update)
+  var stdTransitions = makeTransitionWithUpdate(transitions,update)
 
   function transition(anims, context, fraction, counter) {
     stdTransitions(anims, context, fraction, counter)
@@ -502,7 +549,7 @@ function GravityAnimation() {
 
   return {
     create:blueCircle,
-    init: makeInit(transitions,'main'),
+    init: makeInit(transitions),
     transition:transition,
     update: update
   }
@@ -515,13 +562,16 @@ function GravityAnimation() {
 
 function Box2dGravityAnimation() {
   var world;
-  var transitions = [shapeTransition('shape',shape)];
+  var transitions = {
+    main:[shapeTransition('shape',shape)],
+    '_exiting':[shapeTransition('shape',[{x:0,y:0}])]
+  };
   var SCALE = 1000;
 
   function shape() { return randomCircle(.01, .04) }
 
   function init(anims, context) {
-    makeInit(transitions,'main')(anims, context)
+    makeInit(transitions)(anims, context)
 
     world = new Box2D.Dynamics.b2World( new b2Vec2(0, 8),  false );
     var fixtureIndex = 0;
@@ -577,9 +627,10 @@ function Box2dGravityAnimation() {
   }
 
   return {
+    spec: {main:100},
     create:blueCircle,
     init:init,
-    transition:makeTransitionWithUpdate(transitions,'main', update),
+    transition:makeTransitionWithUpdate(transitions, update),
     update: update
   }
 }
@@ -590,7 +641,7 @@ function Box2dGravityAnimation() {
 
 var animator = Animator([
   OriginAnimation(),
-  SideAnimation(),
+  // SideAnimation(),
   SpreadAnimation(),
   ClockwiseAnimation(),
   RainAnimation(0,0,15,20),
