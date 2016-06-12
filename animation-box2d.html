@@ -170,6 +170,12 @@ function randomColor(minH, maxH, minS, maxS, minV, maxV, minA, maxA) {
     a: lerp(minA, maxA, Math.random())}
 }
 
+function makeRandomColor(minH, maxH, minS, maxS, minV, maxV, minA, maxA) {
+  return function() {
+    return randomColor(minH, maxH, minS, maxS, minV, maxV, minA, maxA)
+  }
+}
+
 function bluish() {
   return 'rgba(52,156,255,'+lerp(.75,1,Math.random())+')'
 }
@@ -247,6 +253,9 @@ function cssToHSVA(css) {
     return {h:parseFloat(m[1])*Math.PI/180, s:parseFloat(m[2])/100, v:parseFloat(m[3])/100, a:parseFloat(m[4])}
   else return {h:1,s:1,v:0,a:1}
 }
+
+function vlength(v) { return Math.sqrt(v.x*v.x + v.y*v.y) }
+function vsub(a,b) { return {x:a.x-b.x, y:a.y-b.y} }
 
 ///////////////////////////////////////////////
 // transitions
@@ -557,13 +566,112 @@ function GravityAnimation() {
 
 //////////////////////////////////////////
 
+function BoidAnimation() {
+  var rejection = 10;
+  var velocitySync = .01;
+  var attraction = .08
+  var maxVelocity = 10;
+  var transitions = {
+    main: [
+      vectorTransition('v',randomV),
+      shapeTransition('shape',shape),
+      colorTransition('fill',bluish)
+    ],
+    '_exiting':[shapeTransition('shape',[{x:0,y:0}])]
+  };
+
+  function shape() {
+    var xscale = lerp(.6,1,Math.random()) * ch
+    var yscale = lerp(.6,1,Math.random()) * ch
+    return [{x:.01*xscale,y:0}, {x:-.02*xscale,y:-.015*yscale}, {x:-.005*xscale,y:0}, {x:-.02*xscale,y:.015*yscale}]
+  }
+
+  function randomV() {
+    return {x:lerp(-3,3,Math.random()),
+            y:lerp(-3,3,Math.random())}
+  }
+
+  function update(anims, counter) {
+    // compute centroid  and initialize force
+    var centroid = {x:0, y:0}
+    for (var i=0, anim; anim = anims.main[i]; i++) {
+      centroid.x += anim.p.x
+      centroid.y += anim.p.y
+      anim.force = {x:0, y:0}
+    }
+    centroid.x /= anims.main.length
+    centroid.y /= anims.main.length
+
+    // compute all forces including interactions
+    for (var i=0, anim1; anim1 = anims.main[i]; i++) {
+      var distance = vlength(anim1.p)
+      var restore = -Math.pow(2*distance/ch,8) / (distance || .00001)
+      anim1.force.x += restore * anim1.p.x
+      anim1.force.y += restore * anim1.p.y
+
+      var centroidDirection = vsub(anim1.p, centroid)
+      var centroidDistance = vlength(centroidDirection)
+      var centroidForce = -attraction / (centroidDistance || .001)
+      anim1.force.x += centroidForce * centroidDirection.x
+      anim1.force.y += centroidForce * centroidDirection.y
+
+      for (var j=i+1, anim2; anim2 = anims.main[j]; j++) {
+        var direction = vsub(anim1.p, anim2.p)
+        var distance = vlength(direction)
+        if (distance < .03*ch) {
+          var rejectForce = rejection / (distance ? distance * distance : 0)
+          anim1.force.x += rejectForce * direction.x
+          anim1.force.y += rejectForce * direction.y
+          anim2.force.x += -rejectForce * direction.x
+          anim2.force.y += -rejectForce * direction.y
+
+          anim1.force.x += velocitySync * anim2.v.x
+          anim1.force.y += velocitySync * anim2.v.y
+          anim2.force.x += velocitySync * anim1.v.x
+          anim2.force.y += velocitySync * anim1.v.y
+        }
+      }
+    }
+
+    anims.main.forEach(function(anim) { updateAnim(anim,centroid) })
+  }
+
+  function updateAnim(anim, centroid) {
+    anim.v.x += anim.force.x
+    anim.v.y += anim.force.y
+
+    // dampen velocity
+    var speed = vlength(anim.v)
+    if (speed > maxVelocity)
+      anim.v = {x:maxVelocity*anim.v.x/speed, y:maxVelocity*anim.v.y/speed}
+
+    anim.p.x += anim.v.x
+    anim.p.y += anim.v.y
+
+    anim.theta = Math.atan2(anim.v.y, anim.v.x)
+  }
+
+  return {
+    spec:{main:100},
+    create:blueCircle,
+    init:makeInit(transitions),
+    transition:makeTransitionWithUpdate(transitions, update),
+    update: update
+  }
+}
+
+//////////////////////////////////////////
+
   // Box2D
   var b2Vec2 = Box2D.Common.Math.b2Vec2
 
 function Box2dGravityAnimation() {
   var world;
   var transitions = {
-    main:[shapeTransition('shape',shape)],
+    main:[
+      shapeTransition('shape',shape),
+      colorTransition('fill',makeRandomColor(0, 0, 0, 0, 0, 0, .5,1))
+    ],
     '_exiting':[shapeTransition('shape',[{x:0,y:0}])]
   };
   var SCALE = 1000;
@@ -647,7 +755,8 @@ var animator = Animator([
   RainAnimation(0,0,15,20),
   RainAnimation(15,20,0,0),
   GravityAnimation(),
-  SpreadAnimation(),
+  BoidAnimation(),
+  // SpreadAnimation(),
   Box2dGravityAnimation()
 ])
 function next() {
