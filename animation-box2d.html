@@ -365,8 +365,8 @@ function OriginAnimation() {
 
 //////////////////////////////////////////
 
-function SideAnimation() {
-  var transitions = [vectorTransition('p',{x:cw/2, y:0}, pop), shapeTransition('shape',randomCircle(.09,.09)), colorTransition('fill','#333')];
+function EaseAnimation() {
+  var transitions = [vectorTransition('p',{x:cw/2, y:0}, popInverse), shapeTransition('shape',randomCircle(.09,.09)), colorTransition('fill','#333')];
 
   function update(anims, counter) {
     anims.main.forEach(
@@ -383,6 +383,29 @@ function SideAnimation() {
     update: update
   }
 }
+
+//////////////////////////////////////////
+
+
+function SideAnimation() {
+  var transitions = [vectorTransition('p',{x:cw/2, y:0}, popInverse), shapeTransition('shape',randomCircle(.09,.09)), colorTransition('fill','#333')];
+
+  function update(anims, counter) {
+    anims.main.forEach(
+        function (anim, index) {
+          anim.p.y = ch/8 * Math.sin(.1*counter);
+        }
+    )
+  }
+
+  return {
+    create:blueCircle,
+    init:makeInit(transitions,'main'),
+    transition:makeTransition(transitions,'main'),
+    update: update
+  }
+}
+
 //////////////////////////////////////////
 
 function SpreadAnimation() {
@@ -553,11 +576,11 @@ function Box2dGravityAnimation() {
       bodyDef.position.x = anim.p.x / SCALE;
       bodyDef.position.y = anim.p.y / SCALE;
 
-      var points = anim.destShape.map(function(point) { return new b2Vec2(.9*point.x/SCALE,.9*point.y/SCALE) })
+      var points = anim.destShape.map(function(point) { return new b2Vec2(.9*point.x/SCALE,.9*point.y/SCALE) });
       fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape.AsArray( points, points.length );
       // fixtureDef.shape = new Box2D.Collision.Shapes.b2CircleShape( .01 * ch / SCALE );
 
-      anim.body = world.CreateBody(bodyDef)
+      anim.body = world.CreateBody(bodyDef);
       anim.body.id = fixtureIndex++;
       anim.body.CreateFixture(fixtureDef);
     })
@@ -565,7 +588,7 @@ function Box2dGravityAnimation() {
 
   function update(anims, counter) {
     world.Step( 1 / 60 /* frame-rate */,  10 /* velocity iterations*/,  1 /* position iterations */);
-    anims.main.forEach(updateAnim)
+    anims.main.forEach(updateAnim);
     world.ClearForces();
   }
 
@@ -573,7 +596,7 @@ function Box2dGravityAnimation() {
     var position = anim.body.GetPosition();
     anim.p.x = position.x * SCALE;
     anim.p.y = position.y * SCALE;
-    anim.theta = anim.body.GetAngle()
+    anim.theta = anim.body.GetAngle();
   }
 
   return {

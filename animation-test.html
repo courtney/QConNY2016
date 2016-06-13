@@ -157,7 +157,7 @@ function valueTransition(prop, value, ease) {
       context[prop+'_dest_'+anim.id] = valueGen();
     },
     transition: function(anim, context, fraction) {
-      var eased = ease(fraction)
+      var eased = ease(fraction);
       anim[prop] = lerp(context[prop+'_origin_'+anim.id], context[prop+'_dest_'+anim.id], eased);
     }
   }
@@ -307,7 +307,7 @@ function ClockwiseAnimation() {
     })
   }
 
-/// this is going from rectangular to 
+/// this creates the rate of rotation
   function transition(anims, context, fraction, counter) {
     dTheta = lerp(0,.01,fraction);
     update(anims, counter);
@@ -329,7 +329,7 @@ function ClockwiseAnimation() {
 // closer to the middle of the screen the higher your theta is and makes everything in the center go faster (delta theta is proportional to the distance from the center)
 // Math.pow is an aethetic thing, gives a bit more differentiation
 // LIVE CODE?
-// really simple, just changing p.x and p.y 
+// really simple, just changing p.x and p.y
     anim.theta += .02*Math.pow(1-anim.r/cw,8) * Math.PI;
     anim.p.x = anim.r * Math.cos(anim.theta);
     anim.p.y = anim.r * Math.sin(anim.theta);
@@ -391,6 +391,7 @@ function GravityAnimation() {
   function init(anims, context) { }
 
   function transition(anims, context, fraction, counter) {
+
 // gradually increasing gravity here
 // something that changes the acceleration
 // does not change position necessarily (directly) but acts directly on velocity

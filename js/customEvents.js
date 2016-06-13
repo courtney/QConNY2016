@@ -192,12 +192,13 @@ Reveal.addEventListener( 'slidechanged', function( event ) {
 		switch( event.currentSlide.dataset.state ) {				
 			case 'introduction': clearBackground(); break;
 			case 'design-dev': fib(); break;			
-			case 'clippy': clearBackground(); break;
+			case 'pixar': clearBackground(); break;
 			case 'progressive-disclosure': closeGrid(); break;
 			case 'grid-demo': gridDemo(event); break;
 			case 'nav-demo': closeGrid(); break;			
 			case 'friction': clearBackground(); break;
 			case 'flick-anim': flick(); break;
+			case 'pe1': clearBackground(); break;
 			case 'birds-on-wire': birds(); break;
 			case 'performance': clearBackground(); break;
 			case 'rail': clearBackground(); break;
