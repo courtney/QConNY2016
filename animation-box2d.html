@@ -154,6 +154,17 @@ function randomCircle(minR, maxR, n) {
   return regularPoly(n||20,size)
 }
 
+function roundedRect(radius, length, n) {
+  n = n || 10
+  var r = radius*ch, l = length*ch;
+  var path = [];
+  for (var i=0; i<=n; i++)
+    path.push({x:-r*Math.sin(Math.PI*i/n), y:r*Math.cos(Math.PI*i/n)})
+  for (var i=0; i<=n; i++)
+    path.push({x:r*Math.sin(Math.PI*i/n) + l, y:-r*Math.cos(Math.PI*i/n)})
+  return path;
+}
+
 function lerp(a,b,x) { return a+x*(b-a); }
 
 function randomLocation() {
@@ -261,12 +272,14 @@ function vsub(a,b) { return {x:a.x-b.x, y:a.y-b.y} }
 // transitions
 ///////////////////////////////////////////////
 
-function valueTransition(prop, value, ease) {
+function valueTransition(prop, value, ease, angle) {
   var valueGen = typeof value == 'function' ? value : function() { return value }
   ease = ease || function(x) { return x; }
   return {
     init: function(anim, context) {
       anim['_origin_'+prop] = anim[prop] || 0;
+      if (angle)
+        anim['_origin_'+prop] = anim['_origin_'+prop] % (2*Math.PI)
       anim['_dest_'+prop] = valueGen();
     },
     transition: function(anim, context, fraction) {
@@ -355,7 +368,7 @@ function shapeTransition(prop, shape, ease) {
   }
 }
 
-function makeInit(transitions) {
+function makeInit(transitions, next) {
   return function(anims, context) {
     for (var group in transitions) {
       for (var i=0, transition; transition=transitions[group][i]; i++) {
@@ -363,10 +376,11 @@ function makeInit(transitions) {
           transition.init(anim, context);
       }
     }
+    if (next) next(anims, context)
   }
 }
 
-function makeTransition(transitions) {
+function makeTransition(transitions, next) {
   return function(anims, context, fraction) {
     for (var group in transitions) {
       for (var i=0, transition; transition=transitions[group][i]; i++) {
@@ -374,14 +388,16 @@ function makeTransition(transitions) {
           transition.transition(anim, context, fraction);
       }
     }
+    if (next) next(anims, context, fraction)
   }
 }
 
-function makeTransitionWithUpdate(transitions, update) {
+function makeTransitionWithUpdate(transitions, update, next) {
   var transition = makeTransition(transitions)
   return function(anims, context, fraction, counter) {
     transition(anims, context, fraction);
     update(anims, counter)
+    if (next) next(anims, context, fraction)
   }
 }
 
@@ -463,34 +479,41 @@ function ClockwiseAnimation() {
   var transitions = {main:[colorTransition('fill', function() { return redish() })]};
   var stdInit = makeInit(transitions)
   var stdTransition = makeTransition(transitions)
-  var dTheta = .01;
+  var dTheta = 0;
 
   function init(anims, context) {
-    stdInit(anims,context)
     anims.main.forEach(function(anim) {
-      anim.theta = Math.atan2(anim.p.y,anim.p.x);
+      anim.ptheta = Math.atan2(anim.p.y,anim.p.x);
       anim.r = Math.sqrt(anim.p.x*anim.p.x + anim.p.y*anim.p.y)
+      anim.theta = anim.theta || 0;
     })
+    dTheta = 0
   }
 
   function transition(anims, context, fraction, counter) {
-    stdTransition(anims,context,fraction,counter)
-    dTheta = lerp(0,.01,fraction);
-    update(anims, counter);
-  }
+    dTheta = lerp(0,.02,fraction);
 
+    anims.main.forEach(function(anim) {
+      anim.theta = lerp(anim.theta,anim.ptheta,fraction)
+    })
+  }
 
   function update(anims, counter) {
     anims.main.forEach(updateAnim)
   }
 
   function updateAnim(anim) {
-    anim.theta += .02*Math.pow(1-anim.r/cw,8) * Math.PI;
-    anim.p.x = anim.r * Math.cos(anim.theta);
-    anim.p.y = anim.r * Math.sin(anim.theta);
+    anim.ptheta += dTheta*Math.pow(1-anim.r/cw,8) * Math.PI;
+    anim.theta += dTheta*Math.pow(1-anim.r/cw,8) * Math.PI;
+    anim.p.x = anim.r * Math.cos(anim.ptheta);
+    anim.p.y = anim.r * Math.sin(anim.ptheta);
   }
-
-  return {create:blueCircle, init:init, transition:transition, update: update}
+  return {
+    spec: {main:400},
+    create:blueCircle,
+    init:makeInit(transitions, init),
+    transition:makeTransitionWithUpdate(transitions, update, transition),
+    update: update}
 }
 
 //////////////////////////////////////////
@@ -662,8 +685,18 @@ function BoidAnimation() {
 
 //////////////////////////////////////////
 
-  // Box2D
-  var b2Vec2 = Box2D.Common.Math.b2Vec2
+// Box2D
+var b2Vec2 = Box2D.Common.Math.b2Vec2
+
+function pathToB2DPath(path, scale) {
+  var points = path.map(function(point) { return new b2Vec2(point.x/scale, point.y/scale) })
+
+  // remve points sequential points that are almost the same
+  return points.filter(function(point,i) {
+    var next = points[(i+1) % points.length];
+    return (Math.abs(point.x-next.x) > 2e-16 || Math.abs(point.y-next.y) > 2e-16 )
+  })
+}
 
 function Box2dGravityAnimation() {
   var world;
@@ -711,9 +744,8 @@ function Box2dGravityAnimation() {
       bodyDef.position.x = anim.p.x / SCALE;
       bodyDef.position.y = anim.p.y / SCALE;
 
-      var points = anim.destShape.map(function(point) { return new b2Vec2(.9*point.x/SCALE,.9*point.y/SCALE) })
+      var points = pathToB2DPath(anim.destShape, SCALE)
       fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape.AsArray( points, points.length );
-      // fixtureDef.shape = new Box2D.Collision.Shapes.b2CircleShape( .01 * ch / SCALE );
 
       anim.body = world.CreateBody(bodyDef)
       anim.body.id = fixtureIndex++;
@@ -743,6 +775,260 @@ function Box2dGravityAnimation() {
   }
 }
 
+//////////////////////////////////////////
+
+function RagDollAnimation() {
+  var world, fixtureIndex = 0;
+  var SCALE = 1000;
+  var DOLL_COUNT = 1;
+  var groups = ['head','torso','left_arm','right_arm','lfore_arm','rfore_arm','left_leg','right_leg','left_shin','right_shin'];
+  var transitions = {
+    head:[
+      vectorTransition('p',{x:0, y:0}),
+      shapeTransition('shape',randomCircle(.02,.02)),
+      colorTransition('fill',makeRandomColor(0, 0, 0, 0, 0, 0, .5,1))
+    ],
+    torso: partTransitions(0, -.04, .02, .04, -Math.PI/2),
+    left_arm: partTransitions(-.018, -.03, .01, .03, -3*Math.PI/4),
+    right_arm: partTransitions(.018, -.03, .01, .03, -Math.PI/4),
+    lfore_arm: partTransitions(-.042, -.055, .01, .03, -3*Math.PI/4),
+    rfore_arm: partTransitions(.042, -.055, .01, .03, -Math.PI/4),
+    left_leg: partTransitions(-.01, -.09, .012, .04, -Math.PI/2),
+    right_leg: partTransitions(.01, -.09, .012, .04, -Math.PI/2),
+    left_shin: partTransitions(-.0105, -.135, .012, .04, -Math.PI/2),
+    right_shin: partTransitions(.0105, -.135, .012, .04, -Math.PI/2),
+    '_exiting':[shapeTransition('shape',[{x:0,y:0}])]
+  };
+
+  function partTransitions(x, y, radius, length, theta) {
+    return [
+      vectorTransition('p',{x:x*ch, y:y*ch}),
+      shapeTransition('shape',roundedRect(radius, length), pop),
+      colorTransition('fill',makeRandomColor(0, 0, 0, 0, 0, 0, .5,1)),
+      valueTransition('theta',theta)
+    ]
+  }
+
+  function init(anims, context) {
+    world = new Box2D.Dynamics.b2World( new b2Vec2(0, 8),  false );
+
+    var bodyDef = new Box2D.Dynamics.b2BodyDef();
+    var fixtureDef = new Box2D.Dynamics.b2FixtureDef();
+    fixtureDef.density = 1.0;
+    fixtureDef.friction = 0.5;
+    fixtureDef.restitution = 0.2;
+    fixtureDef.filter.groupIndex = -1
+
+    addPhysics(anims.head[0], Box2D.Dynamics.b2Body.b2_staticBody, bodyDef, fixtureDef)
+    groups.slice(1).forEach(function(group) {
+      addPhysics(anims[group][0], Box2D.Dynamics.b2Body.b2_dynamicBody, bodyDef, fixtureDef)
+    })
+
+    // attach parts
+    for (var i=0; i<DOLL_COUNT; i++) {
+      addJoint(anims.torso[i], anims.head[i])
+      addJoint(anims.torso[i], anims.left_arm[i])
+      addJoint(anims.torso[i], anims.right_arm[i])
+      addJoint(anims.left_arm[i], anims.lfore_arm[i])
+      addJoint(anims.right_arm[i], anims.rfore_arm[i])
+      addJoint(anims.torso[i], anims.left_leg[i])
+      addJoint(anims.torso[i], anims.right_leg[i])
+      addJoint(anims.left_leg[i], anims.left_shin[i])
+      addJoint(anims.right_leg[i], anims.right_shin[i])
+    }
+  }
+
+  function addJoint(parent, child) {
+    var jointDef = new Box2D.Dynamics.Joints.b2RevoluteJointDef();
+    jointDef.Initialize(parent.body, child.body, child.body.GetWorldPoint(new b2Vec2(0, 0)));
+    world.CreateJoint(jointDef);
+  }
+
+  function addPhysics(anim, type, bodyDef, fixtureDef) {
+    bodyDef.type = type;
+
+    bodyDef.position.x = anim._dest_p.x / SCALE
+    bodyDef.position.y = anim._dest_p.y / SCALE
+    bodyDef.angle = anim._dest_theta || 0;
+    anim.body = world.CreateBody(bodyDef)
+    anim.body.id = fixtureIndex++
+
+    var points = pathToB2DPath(anim.destShape, SCALE)
+    fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape.AsArray( points, points.length );
+    anim.body.CreateFixture(fixtureDef);
+  }
+
+  function update(anims, counter) {
+    world.Step( 1 / 60 /* frame-rate */,  10 /* velocity iterations*/,  1 /* position iterations */);
+
+    groups.forEach(function(group) { anims[group].forEach(updateAnim) })
+    world.ClearForces();
+  }
+
+  function updateAnim(anim) {
+    var position = anim.body.GetPosition();
+    anim.p.x = position.x * SCALE;
+    anim.p.y = position.y * SCALE;
+    anim.theta = anim.body.GetAngle()
+  }
+
+  return {
+    spec: {head:DOLL_COUNT, torso:DOLL_COUNT, left_arm:DOLL_COUNT, right_arm:DOLL_COUNT, lfore_arm:DOLL_COUNT,
+          rfore_arm:DOLL_COUNT, left_leg:DOLL_COUNT, right_leg:DOLL_COUNT, left_shin:DOLL_COUNT, right_shin:DOLL_COUNT},
+    create:blueCircle,
+    init:makeInit(transitions, init),
+    transition:makeTransition(transitions),
+    update: update
+  }
+}
+
+//////////////////////////////////////////
+
+function RagDollsAnimation() {
+  var world, fixtureIndex = 0;
+  var SCALE = 1000;
+  var DOLL_COUNT = 8;
+  var groups = ['head','torso','left_arm','right_arm','lfore_arm','rfore_arm','left_leg','right_leg','left_shin','right_shin'];
+  var scale = .75;
+  var transitions = {
+    head:[
+      vectorTransition('p',{x:0, y:0}),
+      shapeTransition('shape',randomCircle(.02*scale,.02*scale)),
+      colorTransition('fill',makeRandomColor(0, 0, 0, 0, 0, 0, .5,1))
+    ],
+    torso: partTransitions(0, -.04, .02, .04, -Math.PI/2),
+    left_arm: partTransitions(-.018, -.03, .01, .03, -3*Math.PI/4),
+    right_arm: partTransitions(.018, -.03, .01, .03, -Math.PI/4),
+    lfore_arm: partTransitions(-.042, -.055, .01, .03, -3*Math.PI/4),
+    rfore_arm: partTransitions(.042, -.055, .01, .03, -Math.PI/4),
+    left_leg: partTransitions(-.01, -.09, .012, .04, -Math.PI/2),
+    right_leg: partTransitions(.01, -.09, .012, .04, -Math.PI/2),
+    left_shin: partTransitions(-.0105, -.135, .012, .04, -Math.PI/2),
+    right_shin: partTransitions(.0105, -.135, .012, .04, -Math.PI/2),
+    platforms: [
+      shapeTransition('shape', randomTriangle, pop),
+      colorTransition('fill',makeRandomColor(0, 2*Math.PI, 0, .3, 0, .3, .25,.5)),
+      vectorTransition('p',function() { return {x:lerp(-.4*cw,.4*cw,Math.random()), y:lerp(0,.2*ch,Math.random())} })
+    ],
+    '_exiting':[shapeTransition('shape',[{x:0,y:0}])]
+  };
+
+  function partTransitions(x, y, radius, length, theta) {
+    return [
+      vectorTransition('p',{x:x*ch*scale, y:y*ch*scale}),
+      shapeTransition('shape',roundedRect(radius*scale, length*scale), pop),
+      colorTransition('fill',makeRandomColor(0, 2*Math.PI, 0, .1, 0, .2, .5,.75)),
+      valueTransition('theta',theta, pop, true)
+    ]
+  }
+
+  function init(anims, context) {
+    world = new Box2D.Dynamics.b2World( new b2Vec2(0, 1.5),  false );
+
+    var bodyDef = new Box2D.Dynamics.b2BodyDef();
+    var fixtureDef = new Box2D.Dynamics.b2FixtureDef();
+    fixtureDef.density = 1.0;
+    fixtureDef.friction = 0.5;
+    fixtureDef.restitution = 0.2;
+
+    // attach parts
+    for (var i=0; i<DOLL_COUNT; i++) {
+      var location = randomLocation();
+
+      groups.forEach(function(group) {
+        var anim = anims[group][i];
+        anim._dest_p = {x:anim._dest_p.x + location.x, y:anim._dest_p.y + location.y}
+        addPhysics(anim, Box2D.Dynamics.b2Body.b2_dynamicBody, bodyDef, fixtureDef, i)
+      })
+      anims.platforms.forEach(function(anim) {
+        anim.theta = 0
+        anim._dest_theta = 0
+        addPhysics(anim, Box2D.Dynamics.b2Body.b2_staticBody, bodyDef, fixtureDef, 0)
+      })
+
+      addJoint(anims.torso[i], anims.head[i])
+      addJoint(anims.torso[i], anims.left_arm[i])
+      addJoint(anims.torso[i], anims.right_arm[i])
+      addJoint(anims.left_arm[i], anims.lfore_arm[i])
+      addJoint(anims.right_arm[i], anims.rfore_arm[i])
+      addJoint(anims.torso[i], anims.left_leg[i])
+      addJoint(anims.torso[i], anims.right_leg[i])
+      addJoint(anims.left_leg[i], anims.left_shin[i])
+      addJoint(anims.right_leg[i], anims.right_shin[i])
+    }
+  }
+
+  function addJoint(parent, child, filterGroup) {
+    var jointDef = new Box2D.Dynamics.Joints.b2RevoluteJointDef();
+    jointDef.Initialize(parent.body, child.body, child.body.GetWorldPoint(new b2Vec2(0, 0)));
+    world.CreateJoint(jointDef);
+  }
+
+  function randomTriangle() {
+    var base = lerp(0,ch/2,Math.random());
+    var left = lerp(.1*cw,.4*ch,Math.pow(Math.random(),4));
+    var right = lerp(.1*cw,.4*ch,Math.pow(Math.random(),4));
+    var height = lerp(.05*ch,.2*ch,Math.random(),4);
+    return [
+      {x:right, y:base},
+      {x:-left, y:base},
+      {x:0, y:base - height}
+    ]
+  }
+
+  function addPhysics(anim, type, bodyDef, fixtureDef, filterGroup) {
+    fixtureDef.filter.groupIndex = -filterGroup
+
+    bodyDef.type = type;
+
+    bodyDef.position.x = anim._dest_p.x / SCALE
+    bodyDef.position.y = anim._dest_p.y / SCALE
+    bodyDef.angle = anim._dest_theta || 0;
+    anim.body = world.CreateBody(bodyDef)
+    anim.body.id = fixtureIndex++
+
+    var points = pathToB2DPath(anim.destShape, SCALE)
+    fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape.AsArray( points, points.length );
+    anim.body.CreateFixture(fixtureDef);
+  }
+
+  function update(anims, counter) {
+    world.Step( 1 / 60 /* frame-rate */,  10 /* velocity iterations*/,  1 /* position iterations */);
+
+    groups.forEach(function(group) { anims[group].forEach(updateAnim) })
+
+    for (var i=0; i<DOLL_COUNT; i++) {
+      if (anims.head[i].p.y > ch) {
+        var offset = .5*cw*lerp(-1,1,Math.random()) / SCALE - anims.head[i].body.GetPosition().x
+        groups.forEach(function(group) {
+          var position = anims[group][i].body.GetPosition();
+          anims[group][i].body.SetPosition(new b2Vec2(position.x + offset, position.y-cw / SCALE));
+        })
+      }
+    }
+
+    world.ClearForces();
+  }
+
+  function updateAnim(anim) {
+    var position = anim.body.GetPosition();
+    anim.p.x = position.x * SCALE;
+    anim.p.y = position.y * SCALE;
+    anim.theta = anim.body.GetAngle()
+  }
+
+  return {
+    spec: {head:DOLL_COUNT, torso:DOLL_COUNT, left_arm:DOLL_COUNT, right_arm:DOLL_COUNT, lfore_arm:DOLL_COUNT,
+          rfore_arm:DOLL_COUNT, left_leg:DOLL_COUNT, right_leg:DOLL_COUNT, left_shin:DOLL_COUNT, right_shin:DOLL_COUNT,
+        platforms: 4},
+    create:blueCircle,
+    init:makeInit(transitions, init),
+    transition:makeTransition(transitions),
+    update: update
+  }
+}
+
+
 /////////////////////////////////////////
 // Initializtion and UI
 /////////////////////////////////////////
@@ -756,8 +1042,10 @@ var animator = Animator([
   RainAnimation(15,20,0,0),
   GravityAnimation(),
   BoidAnimation(),
-  // SpreadAnimation(),
-  Box2dGravityAnimation()
+  Box2dGravityAnimation(),
+  RagDollAnimation(),
+  RagDollsAnimation(),
+  ClockwiseAnimation()
 ])
 function next() {
   animator.render(ctx);
