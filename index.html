@@ -719,9 +719,8 @@ var fixtureDef = new Box2D.Dynamics.b2FixtureDef();
 // set the details for our constraints
 fixtureDef.density = 1.0;
 fixtureDef.friction = 0.5;
-fixtureDef.restitution = 0.2;
 
-// all this does is add the amount of gravity to the y velocity
+// step through within constraints of our setup
 <em class="red">world.Step( 1 / 60 /* frame-rate */,
 		10 /* velocity iterations*/,
 		1 /* position iterations */);</em>
@@ -748,13 +747,6 @@ groups.slice(1).forEach(function(group) {
 addPhysics(anims[group][0], <em>Box2D.Dynamics.b2Body.b2_dynamicBody</em>, bodyDef, fixtureDef)
 })
 
-// translating box2d points to our structure
-var points = pathToB2DPath(anim.destShape, SCALE)
-
-// create the fixture on the body
-fixtureDef.shape =
-	new Box2D.Collision.Shapes.b2PolygonShape.AsArray( points, points.length );
-anim.body.CreateFixture(fixtureDef);
 					</pre>
 					<aside class="notes">
 					// static are like parts of the environment (things can swing off of the static body)
