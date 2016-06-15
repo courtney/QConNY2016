@@ -203,7 +203,7 @@ Reveal.addEventListener( 'slidechanged', function( event ) {
 			case 'performance': clearBackground(); break;
 			case 'rail': clearBackground(); break;
 			case 'millisecond': millisecond(); break;
-			case 'css-js': clearBackground(); break;			
+			case 'canvas-rendering': clearBackground(); break;
 			case 'buttons': closeGrid(event); break;
 			default: return false;			
 		}				

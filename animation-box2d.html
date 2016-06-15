@@ -823,6 +823,7 @@ function RagDollAnimation() {
     '_exiting':[shapeTransition('shape',[{x:0,y:0}])]
   };
 
+  // sets up the body so that the body parts are oriented in the right direction
   function partTransitions(x, y, radius, length, theta) {
     return [
       vectorTransition('p',{x:x*ch, y:y*ch}),
@@ -833,13 +834,22 @@ function RagDollAnimation() {
   }
 
   function init(anims, context) {
+    // b2Vec2 is just a storage of a vector point value
+    // specifying how much the gravity is
+    // gravity is built into b2World
     world = new Box2D.Dynamics.b2World( new b2Vec2(0, 8),  false );
 
+    // set up of objects (based on c library (templates). specify parameters to create the body with (different in other libraries)
+    // can use this as many times as you like
     var bodyDef = new Box2D.Dynamics.b2BodyDef();
     var fixtureDef = new Box2D.Dynamics.b2FixtureDef();
+
+    // these set up dynamics
     fixtureDef.density = 1.0;
     fixtureDef.friction = 0.5;
     fixtureDef.restitution = 0.2;
+
+    // this determines how  things collide with each other (body parts are attached w/in each other
     fixtureDef.filter.groupIndex = -1
 
     addPhysics(anims.head[0], Box2D.Dynamics.b2Body.b2_staticBody, bodyDef, fixtureDef)
@@ -847,7 +857,7 @@ function RagDollAnimation() {
       addPhysics(anims[group][0], Box2D.Dynamics.b2Body.b2_dynamicBody, bodyDef, fixtureDef)
     })
 
-    // attach parts
+//     attach parts
     for (var i=0; i<DOLL_COUNT; i++) {
       addJoint(anims.torso[i], anims.head[i])
       addJoint(anims.torso[i], anims.left_arm[i])
@@ -867,20 +877,36 @@ function RagDollAnimation() {
     world.CreateJoint(jointDef);
   }
 
+  // sets tup of body depth
+  // static types are like parts of the environment (things can swing off of the static body)
+  // dynamics can move throughout a scene freely
   function addPhysics(anim, type, bodyDef, fixtureDef) {
     bodyDef.type = type;
 
     bodyDef.position.x = anim._dest_p.x / SCALE
     bodyDef.position.y = anim._dest_p.y / SCALE
     bodyDef.angle = anim._dest_theta || 0;
+    // new instance of a body using the template defined above
+    // setting this onto the anim
+    // box2d has the cocept of a body and a fixture.
+    // body is a point w/ a shape attached to it (all the properties of an object in space, expect for how it looks)
+    /// bodies are all the same but the fixtures create the different look
+    // fixture is the actual shape
+
     anim.body = world.CreateBody(bodyDef)
     anim.body.id = fixtureIndex++
 
+    // translating box2d points to our notion of points in our animation structure
     var points = pathToB2DPath(anim.destShape, SCALE)
+
+    // create the fixture on the body
     fixtureDef.shape = new Box2D.Collision.Shapes.b2PolygonShape.AsArray( points, points.length );
     anim.body.CreateFixture(fixtureDef);
   }
 
+  // tell the world to step the anim each time and then it takes care of all of the animation (magic!)
+  // our version and then the physics engines version (when you say step, tell the physics world to update.
+// the narrative
   function update(anims, counter) {
     world.Step( 1 / 60 /* frame-rate */,  10 /* velocity iterations*/,  1 /* position iterations */);
 
@@ -889,6 +915,10 @@ function RagDollAnimation() {
   }
 
   function updateAnim(anim) {
+    // looking at the physics version of the body and reapplying all of our math to it
+    // this allows
+    // this updates positions on the canvas
+    // the actual filming
     var position = anim.body.GetPosition();
     anim.p.x = position.x * SCALE;
     anim.p.y = position.y * SCALE;

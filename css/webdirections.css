@@ -189,8 +189,8 @@ h2#dev-text { left: 6em; top: 0px; opacity: 0; font-family: monospace; }
 	line-height: 1.2em;
 }
 
-.reveal pre.small-code { font-size: 0.4em;}
-.reveal pre.med-code { font-size: 0.7em;}
+.reveal pre.small-code { font-size: 0.4em; text-align: center;}
+.reveal pre.med-code { font-size: 0.7em; text-align: center;}
 
 
 .reveal pre em {

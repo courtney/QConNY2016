@@ -9,48 +9,57 @@
 		<link rel="stylesheet" type="text/css" href="css/wd-icons.css" />
 		<script src="js/modernizr.custom.js"></script>
 		<style type="text/css">
-			.checkmark__circle {
-				stroke-dasharray: 664;
-				stroke-dashoffset: 664;
-				stroke-width: 0;
-				stroke-miterlimit: 0;
-				stroke: #7ac142;
-				fill: #7ac142;
-				animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
-			}
 
-			.checkmark {
-				width: 224px;
-				height: 224px;
+			.check {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				-webkit-transform: translate(-50%, -50%);
+				transform: translate(-50%, -50%);
+				width: 50px;
+				height: 50px;
+				background-image: -webkit-radial-gradient(circle, #ffffff, #dddddd);
+				background-image: radial-gradient(circle, #ffffff, #dddddd);
+				border: 2px solid #ddd;
 				border-radius: 50%;
-				display: block;
-				stroke-width: 2;
-				stroke: #fff;
-				stroke-miterlimit: 10;
-				margin: 10% auto;
-				box-shadow: inset 0px 0px 0px #7ac142;
-				animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+				cursor: pointer;
 			}
-
-			.checkmark__check {
-				transform-origin: 50% 50%;
-				stroke-dasharray: 48;
-				stroke-dashoffset: 48;
-				animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+			.check span {
+				position: absolute;
+				background: #0C0;
+				border-radius: 6px;
+				-webkit-transition: 250ms ease-in;
+				transition: 250ms ease-in;
 			}
-
-			@keyframes stroke {
-				100% {
-					stroke-dashoffset: 0;
-				}
+			.check span:first-child {
+				top: 25px;
+				left: 14px;
+				width: 30px;
+				height: 3px;
+				-webkit-transform: rotate(-45deg);
+				transform: rotate(-45deg);
 			}
-			@keyframes scale {
-				0%, 100% {
-					transform: none;
-				}
-				50% {
-					transform: scale3d(1.1, 1.1, 1);
-				}
+			.check span:last-child {
+				top: 31px;
+				left: 10px;
+				width: 12px;
+				height: 3px;
+				-webkit-transform: rotate(45deg);
+				transform: rotate(45deg);
+			}
+			.check.checked span {
+				background: #f00;
+			}
+			.check.checked span:first-child {
+				left: 10px;
+				-webkit-transform: rotate(-135deg);
+				transform: rotate(-135deg);
+			}
+			.check.checked span:last-child {
+				top: 25px;
+				-webkit-transform: rotate(135deg);
+				transform: rotate(135deg);
+				width: 30px;
 			}
 
 
@@ -59,38 +68,25 @@
 
 	<body>
 		<div class="container" style="text-align: center;">
-			
-			<div class="content content--main clearfix">
-				<svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-					<circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
-					<path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
-				</svg>
-				<!--<button id="sad" class="cbutton cbutton&#45;&#45;effect-radomir">-->
-						<!--<i class="wd wd-sad"></i>-->
-						<!--<span class="cbutton__text">Save</span>-->
-					<!--</button>-->
 
-					<!--<button id="stash" class="cbutton cbutton&#45;&#45;effect-simo cbutton cbutton&#45;&#45;effect-simo">-->
-						<!--<i class="wd wd-arrow-right-circle" style="padding-top: 4px;"></i>-->
-						<!--<span class="cbutton__text">Stash</span>-->
-					<!--</button>					-->
-				
-				
+				<div id="checkmark-example" class="check">
+					<span></span>
+					<span></span>
+				</div>
+
 		</div>
 		
 		<script>
-			(function() {			
-				var sad = document.getElementById( 'sad' );
-				sad.addEventListener( 'click', function( ev ) {
-						sad.classList.add( 'cbutton--click' );
-						sad.querySelector('.wd-sad').className = "wd wd-smile";						
-				} );
-				var stash = document.getElementById( 'stash' );
-				stash.addEventListener( 'click', function( ev ) {
-						stash.classList.add( 'cbutton--click' );
-				} );
-
+			(function() {
+				var check = document.getElementById('checkmark-example');
+				check.addEventListener('click', function(ev){
+					check.classList.toggle('checked');
+				})
 			})();
+
+
+
+
 		</script>
 		
 	</body>
