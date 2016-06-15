@@ -280,6 +280,16 @@ h2#dev-text { left: 6em; top: 0px; opacity: 0; font-family: monospace; }
 
 /*.reveal .progress { display: none !important; }*/
 .reveal blockquote { box-shadow: none;}
+.reveal blockquote.photo {
+  background: rgb(255, 252, 252);
+  background: rgba(255, 252, 252, 0.6);
+}
+.reveal blockquote .credit {
+  font-style: normal;
+  font-size: 0.7em;
+  padding-top: 2em;
+  display: block;
+}
 
 .reveal section img.fjs {
 	border: 0;

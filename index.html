@@ -110,10 +110,14 @@
 				</section>
 
 				<section data-state="pixar" data-background="img/disney.jpeg">
-					<p>
-					<blockquote>"You can take a problem that can't be solved directly by <em class="red">animation</em> and can't be solved by <em class="red">technology</em> and work together to acheive a much better resolution."</blockquote>
-					</p>
-					- Joe Longson, Senior Software Engineer - Zootopia
+
+					<blockquote class="photo">
+						"You can take a problem that can't be solved directly by <em class="red">animation</em> and can't be solved by <em class="red">technology</em> and work together to acheive a much better resolution."<br/>
+						<span class="credit"> - Joe Longson, Senior Software Engineer - Zootopia</span>
+					</blockquote>
+
+
+
 					<aside class="notes">
 						<p>So I really geek out on animation movies, mostly Pixar but really all of them. And the process of producing one of these moveis really facinates me.</p>
 						<p>Creating the animation and lighting effects for today's movies requies huge server farms and super computers with somewhere around 55,000 cores.</p>
@@ -695,6 +699,36 @@ fixtureDef.restitution = 0.2;
 				</pre>
 					<aside class="notes">
 						// math gets complex enough here that it is easier to rely on a physics engine to handle the calculations
+					</aside>
+				</section>
+
+				<section data-state="pe-body">
+					<h2>Static <em class="red">&</em> Dynamic</h2>
+					<pre class="med-code">
+// set body parts oriented in the right direction
+torso: partTransitions(0, -.04, .02, .04, -Math.PI/2),
+left_arm: partTransitions(-.018, -.03, .01, .03, -3*Math.PI/4),
+
+// sets how parts are attached to each other
+fixtureDef.filter.groupIndex = -1
+
+// set up static & dynamic types
+addPhysics(anims.head[0], <em>Box2D.Dynamics.b2Body.b2_staticBody</em>, bodyDef, fixtureDef)
+groups.slice(1).forEach(function(group) {
+addPhysics(anims[group][0], <em>Box2D.Dynamics.b2Body.b2_dynamicBody</em>, bodyDef, fixtureDef)
+})
+
+// translating box2d points to our structure
+var points = pathToB2DPath(anim.destShape, SCALE)
+
+// create the fixture on the body
+fixtureDef.shape =
+	new Box2D.Collision.Shapes.b2PolygonShape.AsArray( points, points.length );
+anim.body.CreateFixture(fixtureDef);
+					</pre>
+					<aside class="notes">
+					// static are like parts of the environment (things can swing off of the static body)
+					// dynamics can move throughout a scene freely
 					</aside>
 				</section>
 				
