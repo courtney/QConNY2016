@@ -44,8 +44,7 @@ html {
 .reveal .progress,
 .reveal.overview,
 .fork-reveal,
-.share-reveal,
-.state-background {
+.share-reveal {
 	display: none !important;
 }
 
@@ -168,11 +167,7 @@ ul, ol, div, p {
 	        transform: none !important;
 }
 .reveal section .slide-background {
-	position: absolute;
-	top: 0;
-	left: 0;
-	width: 100%;
-	z-index: 0;
+
 }
 .reveal section>* {
 	position: relative;
