@@ -679,6 +679,36 @@ anim.p.y += anim.v.y
 					</aside>
 				</section>
 				<section data-state="pe2">
+					<h2>Separation, <em class="red">Align</em>ment, & Cohesion</h2>
+					<pre class="med-code">
+
+// set boids direction towards center
+var centroidDirection = vsub(anim1.p, centroid)
+var centroidDistance = vlength(centroidDirection)
+
+// apply interaction force against boids
+var centroidForce = -attraction / (centroidDistance || .001)
+anim1.force.x += centroidForce * centroidDirection.x
+anim2.force.x += centroidForce * centroidDirection.x
+
+var rejectForce = <em>rejection</em> / (distance ? distance * distance : 0)
+anim1.force.x += rejectForce * direction.x
+anim2.force.x += rejectForce * direction.y
+
+// match velocity to nearby boids
+anim1.force.x += velocitySync * anim2.v.x
+anim2.force.x += velocitySync * anim1.v.x
+
+					</pre>
+					<aside class="notes">
+						//  Craig Reynolds in 1986 created an artificial life program that he called boids (for bird-oids)<br/>
+						// interaction of individual agents adhering to a simple set of rules<br/>
+						// Rule 1: Boids try to fly towards the centre of mass of neighbouring boids.<br/>
+						// Rule 2: Boids try to keep a small distance away from other objects (including other boids).<br/>
+						// Rule 3: Boids try to match velocity with near boids.<br/>
+					</aside>
+				</section>
+				<section data-state="pe2">
 					<h2>Collisions (<em class="red">engines</em>!)</h2>
 				<pre class="med-code">
 
